@@ -87,6 +87,10 @@ const mockClients = [
   { id: "CLI003", name: "DEF Ltd" }
 ];
 
+const manufacturingJointOptions = ["Stitching Pin", "Glue"];
+const printingTypeOptions = ["Flexo", "Offset", "Digital"];
+const colorOptions = ["1", "2", "3", "4", "5", "6"];
+
 export default function BoxMaster() {
   const { boxId } = useParams<{ boxId: string }>();
   const { toast } = useToast();
@@ -545,10 +549,13 @@ export default function BoxMaster() {
                         <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select Mfg Joint" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Stitching Pin">Stitching Pin</SelectItem>
-                          <SelectItem value="Glue">Glue</SelectItem>
-                        </SelectContent>
+                         <SelectContent>
+                           {manufacturingJointOptions.map((option) => (
+                             <SelectItem key={option} value={option}>
+                               {option}
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
                       </Select>
                     )}
                   />
@@ -760,13 +767,13 @@ export default function BoxMaster() {
                             <SelectTrigger className="bg-background">
                               <SelectValue placeholder="Select No. of Colours" />
                             </SelectTrigger>
-                            <SelectContent>
-                              {["1", "2", "3", "4", "5", "6"].map((num) => (
-                                <SelectItem key={num} value={num}>
-                                  {num}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
+                           <SelectContent>
+                             {colorOptions.map((option) => (
+                               <SelectItem key={option} value={option}>
+                                 {option}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
                           </Select>
                         )}
                       />
@@ -781,11 +788,13 @@ export default function BoxMaster() {
                             <SelectTrigger className="bg-background">
                               <SelectValue placeholder="Select Printing Type" />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Flexo">Flexo</SelectItem>
-                              <SelectItem value="Offset">Offset</SelectItem>
-                              <SelectItem value="Screen">Screen</SelectItem>
-                            </SelectContent>
+                           <SelectContent>
+                             {printingTypeOptions.map((option) => (
+                               <SelectItem key={option} value={option}>
+                                 {option}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
                           </Select>
                         )}
                       />

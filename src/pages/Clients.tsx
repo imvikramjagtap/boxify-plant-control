@@ -15,7 +15,12 @@ const industryTypes = [
   "Dairy",
   "Automobile", 
   "Pharma",
-  "Liquor"
+  "Liquor",
+  "Electronics",
+  "Food & Beverage",
+  "Cosmetics",
+  "Textiles",
+  "E-commerce"
 ];
 
 interface ContactPerson {
@@ -469,7 +474,25 @@ export default function Clients() {
       </div>
 
       {/* Clients Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {filteredClients.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <Package className="h-16 w-16 text-muted-foreground" />
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-semibold">No clients found</h3>
+            <p className="text-muted-foreground">
+              {searchTerm || industryFilter !== "all" 
+                ? "Try adjusting your search criteria or filters"
+                : "Get started by adding your first client"
+              }
+            </p>
+          </div>
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Client
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredClients.map((client) => (
           <Card key={client.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
@@ -556,6 +579,7 @@ export default function Clients() {
           </Card>
         ))}
       </div>
+      )}
     </div>
   );
 }

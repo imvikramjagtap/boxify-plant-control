@@ -16,7 +16,10 @@ const productTypes = [
   "Adhesive & Glue", 
   "Stitching Wire",
   "Printing Ink",
-  "Packaging Material"
+  "Packaging Material",
+  "Lamination Material",
+  "Die Cutting Tools",
+  "Quality Control Equipment"
 ];
 
 interface ContactPerson {
