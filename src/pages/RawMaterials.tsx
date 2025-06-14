@@ -15,10 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { 
   addMaterial, 
-  updateMaterial, 
-  selectAllMaterials 
+  updateMaterial
 } from "@/store/slices/rawMaterialsSlice";
-import { selectAllSuppliers } from "@/store/slices/suppliersSlice";
 
 const productTypes = [
   "Corrugated Sheets",
@@ -97,8 +95,8 @@ export default function RawMaterials() {
   const [materialFilter, setMaterialFilter] = useState<string>("all");
 
   // Get data from Redux store
-  const materials = useAppSelector(selectAllMaterials);
-  const suppliers = useAppSelector(selectAllSuppliers);
+  const materials = useAppSelector((state: any) => state.rawMaterials.materials);
+  const suppliers = useAppSelector((state: any) => state.suppliers.suppliers);
   const stockMovements = useAppSelector((state: any) => state.stockMovements.movements);
 
   const [formData, setFormData] = useState({
@@ -157,9 +155,28 @@ export default function RawMaterials() {
   };
 
   const handleSubmit = () => {
+    // Calculate status based on stock levels
+    let status: "In Stock" | "Low Stock" | "Out of Stock" = "In Stock";
+    if (formData.currentStock === 0) {
+      status = "Out of Stock";
+    } else if (formData.currentStock <= formData.minimumStock) {
+      status = "Low Stock";
+    }
+
     dispatch(addMaterial({
-      ...formData,
-      status: "Active" as any
+      name: formData.name,
+      productType: formData.productType,
+      specifications: formData.specifications,
+      unit: formData.unit,
+      currentStock: formData.currentStock,
+      minimumStock: formData.minimumStock,
+      unitPrice: formData.unitPrice,
+      supplierId: formData.supplierId,
+      supplierName: formData.supplierName,
+      batchNumber: formData.batchNumber,
+      manufacturingDate: formData.manufacturingDate,
+      receivedDate: formData.receivedDate,
+      status
     }));
     
     toast({
@@ -172,34 +189,30 @@ export default function RawMaterials() {
   };
 
   const handleStockMovement = () => {
-    const movement: StockMovement = {
-      id: `SM${String(stockMovements.length + 1).padStart(3, '0')}`,
+    const movement = {
       materialId: selectedMaterial!.id,
-      ...stockMovementData,
-      date: new Date().toISOString().split('T')[0]
+      type: stockMovementData.type,
+      quantity: stockMovementData.quantity,
+      reason: stockMovementData.reason,
+      jobId: stockMovementData.jobId,
+      poNumber: stockMovementData.poNumber,
+      notes: stockMovementData.notes,
+      date: new Date().toISOString().split('T')[0],
+      createdBy: "System"
     };
 
-    // Update material stock
-    const updatedMaterials = materials.map(material => {
-      if (material.id === selectedMaterial!.id) {
-        const newStock = stockMovementData.type === "IN" 
-          ? material.currentStock + stockMovementData.quantity
-          : material.currentStock - stockMovementData.quantity;
-        
-        let status: "In Stock" | "Low Stock" | "Out of Stock" = "In Stock";
-        if (newStock === 0) {
-          status = "Out of Stock";
-        } else if (newStock <= material.minimumStock) {
-          status = "Low Stock";
-        }
+    // Add stock movement to Redux
+    dispatch({ type: 'stockMovements/addStockMovement', payload: movement });
 
-        return { ...material, currentStock: Math.max(0, newStock), status };
-      }
-      return material;
+    // Update material stock in Redux
+    dispatch({ 
+      type: 'rawMaterials/updateStock', 
+      payload: { 
+        id: selectedMaterial!.id, 
+        quantity: stockMovementData.quantity, 
+        type: stockMovementData.type 
+      } 
     });
-
-    setMaterials(updatedMaterials);
-    setStockMovements([...stockMovements, movement]);
     
     toast({
       title: "Stock Updated",
@@ -875,15 +888,15 @@ export default function RawMaterials() {
                 </div>
               </div>
 
-              {Object.keys(selectedMaterial.specifications).length > 0 && (
+              {selectedMaterial.specifications && Object.keys(selectedMaterial.specifications).length > 0 && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Specifications</Label>
                   <div className="grid grid-cols-2 gap-2">
-                    {Object.entries(selectedMaterial.specifications).map(([key, value]) => (
+                    {Object.entries(selectedMaterial.specifications || {}).map(([key, value]) => (
                       value && (
                         <div key={key} className="flex justify-between">
                           <span className="text-sm text-muted-foreground capitalize">{key}:</span>
-                          <span className="text-sm">{value}</span>
+                          <span className="text-sm">{String(value)}</span>
                         </div>
                       )
                     ))}
