@@ -10,6 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Settings, Truck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { 
+  addSupplier, 
+  updateSupplier, 
+  selectAllSuppliers, 
+  clearError 
+} from "@/store/slices/suppliersSlice";
 
 const productTypes = [
   "Corrugated Sheets",
@@ -27,61 +34,18 @@ interface ContactPerson {
   phone: string;
 }
 
-interface Supplier {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  gstNumber: string;
-  productType: string;
-  state: string;
-  address: string;
-  pinCode: string;
-  contactPersons: ContactPerson[];
-  status: "Active" | "Inactive";
-}
-
 export default function Suppliers() {
   const { toast } = useToast();
+  const dispatch = useAppDispatch();
   const { supplierId } = useParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [editingSupplier, setEditingSupplier] = useState<any>(null);
   const [productFilter, setProductFilter] = useState<string>("all");
-  const [suppliers, setSuppliers] = useState<Supplier[]>([
-    {
-      id: "SUP001",
-      name: "Paper Mills Pvt Ltd",
-      email: "info@papermills.com",
-      phone: "+91 9876543210",
-      gstNumber: "27AAAAA0000A1Z5",
-      productType: "Corrugated Sheets",
-      state: "Maharashtra",
-      address: "123 Industrial Area, Mumbai",
-      pinCode: "400001",
-      contactPersons: [
-        { name: "Rajesh Kumar", phone: "+91 9876543211" },
-        { name: "Priya Sharma", phone: "+91 9876543212" }
-      ],
-      status: "Active"
-    },
-    {
-      id: "SUP002", 
-      name: "Adhesive Solutions",
-      email: "sales@adhesive.com",
-      phone: "+91 9876543213",
-      gstNumber: "29BBBBB0000B1Z5",
-      productType: "Adhesive & Glue",
-      state: "Karnataka",
-      address: "456 Chemical Complex, Bangalore",
-      pinCode: "560001",
-      contactPersons: [
-        { name: "Amit Patel", phone: "+91 9876543214" }
-      ],
-      status: "Active"
-    }
-  ]);
+  
+  const suppliers = useAppSelector(selectAllSuppliers);
+  const { error } = useAppSelector((state) => state.suppliers);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -126,31 +90,43 @@ export default function Suppliers() {
   const handleSubmit = () => {
     if (editingSupplier) {
       // Update existing supplier
-      const updatedSuppliers = suppliers.map(supplier =>
-        supplier.id === editingSupplier.id
-          ? { ...supplier, ...formData }
-          : supplier
-      );
-      setSuppliers(updatedSuppliers);
+      dispatch(updateSupplier({ 
+        id: editingSupplier.id, 
+        updates: { ...formData, status: "Active" } 
+      }));
       
-      toast({
-        title: "Supplier Updated",
-        description: "Supplier has been successfully updated.",
-      });
+      if (!error) {
+        toast({
+          title: "Supplier Updated",
+          description: "Supplier has been successfully updated.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive",
+        });
+        dispatch(clearError());
+        return;
+      }
     } else {
       // Add new supplier
-      const newSupplier: Supplier = {
-        id: `SUP${String(suppliers.length + 1).padStart(3, '0')}`,
-        ...formData,
-        status: "Active"
-      };
+      dispatch(addSupplier({ ...formData, status: "Active" }));
       
-      setSuppliers([...suppliers, newSupplier]);
-      
-      toast({
-        title: "Supplier Added",
-        description: "New supplier has been successfully added to the system.",
-      });
+      if (!error) {
+        toast({
+          title: "Supplier Added",
+          description: "New supplier has been successfully added to the system.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive",
+        });
+        dispatch(clearError());
+        return;
+      }
     }
     
     setIsDialogOpen(false);
