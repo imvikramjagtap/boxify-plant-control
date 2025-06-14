@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,8 +32,11 @@ interface Supplier {
 
 export default function Suppliers() {
   const { toast } = useToast();
+  const { supplierId } = useParams();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([
     {
       id: "SUP001",
@@ -84,15 +88,59 @@ export default function Suppliers() {
     supplier.productType.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  useEffect(() => {
+    if (supplierId) {
+      const supplier = suppliers.find(s => s.id === supplierId);
+      if (supplier) {
+        setEditingSupplier(supplier);
+        setFormData({
+          name: supplier.name,
+          email: supplier.email,
+          phone: supplier.phone,
+          gstNumber: supplier.gstNumber,
+          productType: supplier.productType,
+          state: supplier.state,
+          address: supplier.address,
+          pinCode: supplier.pinCode,
+          contactPersons: supplier.contactPersons
+        });
+        setIsDialogOpen(true);
+      }
+    }
+  }, [supplierId, suppliers]);
+
   const handleSubmit = () => {
-    const newSupplier: Supplier = {
-      id: `SUP${String(suppliers.length + 1).padStart(3, '0')}`,
-      ...formData,
-      status: "Active"
-    };
+    if (editingSupplier) {
+      // Update existing supplier
+      const updatedSuppliers = suppliers.map(supplier =>
+        supplier.id === editingSupplier.id
+          ? { ...supplier, ...formData }
+          : supplier
+      );
+      setSuppliers(updatedSuppliers);
+      
+      toast({
+        title: "Supplier Updated",
+        description: "Supplier has been successfully updated.",
+      });
+    } else {
+      // Add new supplier
+      const newSupplier: Supplier = {
+        id: `SUP${String(suppliers.length + 1).padStart(3, '0')}`,
+        ...formData,
+        status: "Active"
+      };
+      
+      setSuppliers([...suppliers, newSupplier]);
+      
+      toast({
+        title: "Supplier Added",
+        description: "New supplier has been successfully added to the system.",
+      });
+    }
     
-    setSuppliers([...suppliers, newSupplier]);
     setIsDialogOpen(false);
+    setEditingSupplier(null);
     setFormData({
       name: "",
       email: "",
@@ -105,10 +153,9 @@ export default function Suppliers() {
       contactPersons: [{ name: "", phone: "" }]
     });
     
-    toast({
-      title: "Supplier Added",
-      description: "New supplier has been successfully added to the system.",
-    });
+    if (supplierId) {
+      navigate('/suppliers');
+    }
   };
 
   const addContactPerson = () => {
@@ -149,7 +196,7 @@ export default function Suppliers() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New Supplier</DialogTitle>
+              <DialogTitle>{editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -282,11 +329,28 @@ export default function Suppliers() {
               </div>
             </div>
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setIsDialogOpen(false);
+                setEditingSupplier(null);
+                setFormData({
+                  name: "",
+                  email: "",
+                  phone: "",
+                  gstNumber: "",
+                  productType: "",
+                  state: "",
+                  address: "",
+                  pinCode: "",
+                  contactPersons: [{ name: "", phone: "" }]
+                });
+                if (supplierId) {
+                  navigate('/suppliers');
+                }
+              }}>
                 Cancel
               </Button>
               <Button onClick={handleSubmit}>
-                Add Supplier
+                {editingSupplier ? 'Update Supplier' : 'Add Supplier'}
               </Button>
             </div>
           </DialogContent>
@@ -355,7 +419,11 @@ export default function Suppliers() {
               )}
               
               <div className="flex justify-end">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate(`/suppliers/${supplier.id}`)}
+                >
                   <Settings className="h-3 w-3 mr-1" />
                   Edit
                 </Button>

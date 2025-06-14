@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,8 +32,11 @@ interface Client {
 
 export default function Clients() {
   const { toast } = useToast();
+  const { clientId } = useParams();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([
     {
       id: "CLI001",
@@ -87,16 +91,61 @@ export default function Clients() {
     client.productType.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  useEffect(() => {
+    if (clientId) {
+      const client = clients.find(c => c.id === clientId);
+      if (client) {
+        setEditingClient(client);
+        setFormData({
+          name: client.name,
+          email: client.email,
+          phone: client.phone,
+          gstNumber: client.gstNumber,
+          productType: client.productType,
+          state: client.state,
+          address: client.address,
+          pinCode: client.pinCode,
+          contactPersons: client.contactPersons,
+          associatedItems: client.associatedItems.length > 0 ? client.associatedItems : [""]
+        });
+        setIsDialogOpen(true);
+      }
+    }
+  }, [clientId, clients]);
+
   const handleSubmit = () => {
-    const newClient: Client = {
-      id: `CLI${String(clients.length + 1).padStart(3, '0')}`,
-      ...formData,
-      associatedItems: formData.associatedItems.filter(item => item.trim() !== ""),
-      status: "Active"
-    };
+    if (editingClient) {
+      // Update existing client
+      const updatedClients = clients.map(client =>
+        client.id === editingClient.id
+          ? { ...client, ...formData, associatedItems: formData.associatedItems.filter(item => item.trim() !== "") }
+          : client
+      );
+      setClients(updatedClients);
+      
+      toast({
+        title: "Client Updated",
+        description: "Client has been successfully updated.",
+      });
+    } else {
+      // Add new client
+      const newClient: Client = {
+        id: `CLI${String(clients.length + 1).padStart(3, '0')}`,
+        ...formData,
+        associatedItems: formData.associatedItems.filter(item => item.trim() !== ""),
+        status: "Active"
+      };
+      
+      setClients([...clients, newClient]);
+      
+      toast({
+        title: "Client Added",
+        description: "New client has been successfully added to the system.",
+      });
+    }
     
-    setClients([...clients, newClient]);
     setIsDialogOpen(false);
+    setEditingClient(null);
     setFormData({
       name: "",
       email: "",
@@ -110,10 +159,9 @@ export default function Clients() {
       associatedItems: [""]
     });
     
-    toast({
-      title: "Client Added",
-      description: "New client has been successfully added to the system.",
-    });
+    if (clientId) {
+      navigate('/clients');
+    }
   };
 
   const addContactPerson = () => {
@@ -173,7 +221,7 @@ export default function Clients() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New Client</DialogTitle>
+              <DialogTitle>{editingClient ? 'Edit Client' : 'Add New Client'}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -326,11 +374,29 @@ export default function Clients() {
               </div>
             </div>
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setIsDialogOpen(false);
+                setEditingClient(null);
+                setFormData({
+                  name: "",
+                  email: "",
+                  phone: "",
+                  gstNumber: "",
+                  productType: "",
+                  state: "",
+                  address: "",
+                  pinCode: "",
+                  contactPersons: [{ name: "", phone: "" }],
+                  associatedItems: [""]
+                });
+                if (clientId) {
+                  navigate('/clients');
+                }
+              }}>
                 Cancel
               </Button>
               <Button onClick={handleSubmit}>
-                Add Client
+                {editingClient ? 'Update Client' : 'Add Client'}
               </Button>
             </div>
           </DialogContent>
@@ -420,7 +486,11 @@ export default function Clients() {
               )}
               
               <div className="flex justify-end">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate(`/clients/${client.id}`)}
+                >
                   <Settings className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
