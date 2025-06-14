@@ -32,7 +32,7 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-export const generatePOEmail = (po: PurchaseOrder): string => {
+export const generatePOEmailTemplate = (po: PurchaseOrder): string => {
   return `
 Subject: Purchase Order ${po.id} - ${po.supplier.name}
 
@@ -66,6 +66,8 @@ Best regards,
 ${po.requestedBy}
   `.trim();
 };
+
+export const generatePOEmail = generatePOEmailTemplate;
 
 export const getSpecificationsSummary = (item: POItem): string => {
   if (!item.specifications) return '';

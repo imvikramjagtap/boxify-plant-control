@@ -77,7 +77,13 @@ import {
 } from "@/store/slices/purchaseOrdersSlice";
 import { updateStock } from "@/store/slices/rawMaterialsSlice";
 import { addStockMovement } from "@/store/slices/stockMovementsSlice";
+import { 
+  updateItemDelivery, 
+  markPOEmailSent, 
+  markPOPrinted 
+} from "@/store/slices/purchaseOrdersSlice";
 import { POItem, PurchaseOrder } from "@/store/types";
+import { generatePOEmailTemplate } from "@/utils/poUtils";
 
 
 const getStatusColor = (status: string) => {
@@ -118,6 +124,16 @@ export default function PurchaseOrders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [supplierSearchOpen, setSupplierSearchOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeliveryDialogOpen, setIsDeliveryDialogOpen] = useState(false);
+  const [selectedDeliveryItem, setSelectedDeliveryItem] = useState(null);
+  const [deliveryData, setDeliveryData] = useState({
+    deliveredQuantity: 0,
+    qualityAccepted: false,
+    grnNumber: "",
+    inspectionNotes: ""
+  });
+  const [editingPO, setEditingPO] = useState(null);
   
   // Get data from Redux store
   const suppliers = useAppSelector((state: any) => state.suppliers.suppliers);
@@ -340,10 +356,96 @@ export default function PurchaseOrders() {
 
   const handleSendPO = (po: any) => {
     dispatch(sendPurchaseOrder(po.id));
+    dispatch(markPOEmailSent(po.id));
     toast({
       title: "PO Sent",
       description: `Purchase Order ${po.id} has been sent to supplier.`,
     });
+  };
+
+  const handleCopyEmailTemplate = (po: any) => {
+    const template = generatePOEmailTemplate(po);
+    navigator.clipboard.writeText(template);
+    toast({
+      title: "Email Template Copied",
+      description: "PO email template has been copied to clipboard.",
+    });
+  };
+
+  const handleDownloadPO = (po: any) => {
+    dispatch(markPOPrinted(po.id));
+    // In a real application, this would generate and download a PDF
+    toast({
+      title: "PO Downloaded",
+      description: `Purchase Order ${po.id} has been downloaded.`,
+    });
+  };
+
+  const handleEditPO = (po: any) => {
+    if (po.status !== 'draft') {
+      toast({
+        title: "Cannot Edit",
+        description: "Only draft POs can be edited.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setEditingPO(po);
+    setIsEditDialogOpen(true);
+  };
+
+  const handlePartialDelivery = (po: any, item: any) => {
+    setSelectedPO(po);
+    setSelectedDeliveryItem(item);
+    setDeliveryData({
+      deliveredQuantity: 0,
+      qualityAccepted: false,
+      grnNumber: "",
+      inspectionNotes: ""
+    });
+    setIsDeliveryDialogOpen(true);
+  };
+
+  const handleSaveDelivery = () => {
+    if (!selectedPO || !selectedDeliveryItem) return;
+    
+    dispatch(updateItemDelivery({
+      poId: selectedPO.id,
+      itemId: selectedDeliveryItem.id,
+      deliveredQuantity: deliveryData.deliveredQuantity,
+      qualityAccepted: deliveryData.qualityAccepted,
+      grnNumber: deliveryData.grnNumber,
+      inspectionNotes: deliveryData.inspectionNotes
+    }));
+
+    // Update stock for delivered quantity
+    dispatch(updateStock({ 
+      id: selectedDeliveryItem.materialId, 
+      quantity: deliveryData.deliveredQuantity, 
+      type: "IN", 
+      poId: selectedPO.id 
+    }));
+
+    // Add stock movement
+    dispatch(addStockMovement({
+      materialId: selectedDeliveryItem.materialId,
+      type: "IN",
+      quantity: deliveryData.deliveredQuantity,
+      reason: "Partial Delivery - Purchase Order",
+      poNumber: selectedPO.id,
+      notes: `GRN: ${deliveryData.grnNumber} | Quality: ${deliveryData.qualityAccepted ? 'Accepted' : 'Rejected'} | ${deliveryData.inspectionNotes}`,
+      date: new Date().toISOString().split('T')[0],
+      createdBy: "System"
+    }));
+
+    toast({
+      title: "Delivery Recorded",
+      description: `Partial delivery of ${deliveryData.deliveredQuantity} units recorded for ${selectedDeliveryItem.materialName}.`,
+    });
+
+    setIsDeliveryDialogOpen(false);
+    setSelectedDeliveryItem(null);
+    setSelectedPO(null);
   };
 
   const handleAcknowledgePO = (po: any) => {
@@ -356,24 +458,27 @@ export default function PurchaseOrders() {
 
   const handleMarkDelivered = (po: any) => {
     dispatch(deliverPurchaseOrder(po.id));
-    // Update stock for all items in the PO
+    // Update stock for all items in the PO (only remaining quantities)
     po.items.forEach((item: any) => {
-      dispatch(updateStock({ 
-        id: item.materialId, 
-        quantity: item.quantity, 
-        type: "IN", 
-        poId: po.id 
-      }));
-      dispatch(addStockMovement({
-        materialId: item.materialId,
-        type: "IN",
-        quantity: item.quantity,
-        reason: "Purchase Order Delivery",
-        poNumber: po.id,
-        notes: `Delivered from ${po.supplier.name}`,
-        date: new Date().toISOString().split('T')[0],
-        createdBy: "System"
-      }));
+      const remainingQuantity = item.quantity - (item.deliveredQuantity || 0);
+      if (remainingQuantity > 0) {
+        dispatch(updateStock({ 
+          id: item.materialId, 
+          quantity: remainingQuantity, 
+          type: "IN", 
+          poId: po.id 
+        }));
+        dispatch(addStockMovement({
+          materialId: item.materialId,
+          type: "IN",
+          quantity: remainingQuantity,
+          reason: "Final Delivery - Purchase Order",
+          poNumber: po.id,
+          notes: `Final delivery from ${po.supplier.name}`,
+          date: new Date().toISOString().split('T')[0],
+          createdBy: "System"
+        }));
+      }
     });
     toast({
       title: "PO Delivered",
@@ -387,6 +492,15 @@ export default function PurchaseOrders() {
     switch (po.status) {
       case 'draft':
         buttons.push(
+          <Button
+            key="edit"
+            size="sm"
+            variant="outline"
+            onClick={() => handleEditPO(po)}
+          >
+            <Edit className="h-3 w-3 mr-1" />
+            Edit
+          </Button>,
           <Button
             key="submit"
             size="sm"
@@ -425,6 +539,15 @@ export default function PurchaseOrders() {
       case 'approved':
         buttons.push(
           <Button
+            key="copy-template"
+            size="sm"
+            variant="outline"
+            onClick={() => handleCopyEmailTemplate(po)}
+          >
+            <Copy className="h-3 w-3 mr-1" />
+            Copy Email
+          </Button>,
+          <Button
             key="send"
             size="sm"
             onClick={() => handleSendPO(po)}
@@ -453,6 +576,19 @@ export default function PurchaseOrders() {
       case 'acknowledged':
         buttons.push(
           <Button
+            key="partial-delivery"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setSelectedPO(po);
+              setIsViewDialogOpen(true);
+            }}
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            <Package className="h-3 w-3 mr-1" />
+            Partial Delivery
+          </Button>,
+          <Button
             key="deliver"
             size="sm"
             onClick={() => handleMarkDelivered(po)}
@@ -465,7 +601,17 @@ export default function PurchaseOrders() {
         break;
     }
 
+    // Always available actions
     buttons.push(
+      <Button
+        key="download"
+        size="sm"
+        variant="outline"
+        onClick={() => handleDownloadPO(po)}
+      >
+        <Download className="h-3 w-3 mr-1" />
+        Download
+      </Button>,
       <Button
         key="view"
         size="sm"
@@ -1234,14 +1380,71 @@ export default function PurchaseOrders() {
                     <div><strong>Status:</strong> 
                       <Badge className={`ml-2 ${getStatusColor(selectedPO.status)} text-white`}>
                         {getStatusIcon(selectedPO.status)}
-                        <span className="ml-1 capitalize">{selectedPO.status}</span>
-                      </Badge>
-                    </div>
-                    <div><strong>Requested By:</strong> {selectedPO.requestedBy}</div>
-                    {selectedPO.approvedBy && <div><strong>Approved By:</strong> {selectedPO.approvedBy}</div>}
-                  </CardContent>
-                </Card>
-              </div>
+                           <span className="ml-1 capitalize">{selectedPO.status}</span>
+                         </Badge>
+                       </div>
+                       <div><strong>Requested By:</strong> {selectedPO.requestedBy}</div>
+                       {selectedPO.approvedBy && <div><strong>Approved By:</strong> {selectedPO.approvedBy}</div>}
+                     </CardContent>
+                   </Card>
+                 </div>
+
+                 {/* Line Items with Delivery Status */}
+                 {selectedPO.status === 'acknowledged' && (
+                   <Card>
+                     <CardHeader>
+                       <CardTitle className="text-base">Delivery Management</CardTitle>
+                     </CardHeader>
+                     <CardContent>
+                       <Table>
+                         <TableHeader>
+                           <TableRow>
+                             <TableHead>Material</TableHead>
+                             <TableHead>Ordered Qty</TableHead>
+                             <TableHead>Delivered Qty</TableHead>
+                             <TableHead>Remaining</TableHead>
+                             <TableHead>Status</TableHead>
+                             <TableHead>Actions</TableHead>
+                           </TableRow>
+                         </TableHeader>
+                         <TableBody>
+                           {selectedPO.items.map((item) => {
+                             const delivered = item.deliveredQuantity || 0;
+                             const remaining = item.quantity - delivered;
+                             return (
+                               <TableRow key={item.id}>
+                                 <TableCell>{item.materialName}</TableCell>
+                                 <TableCell>{item.quantity} {item.unit}</TableCell>
+                                 <TableCell>{delivered} {item.unit}</TableCell>
+                                 <TableCell>{remaining} {item.unit}</TableCell>
+                                 <TableCell>
+                                   <Badge variant={
+                                     item.deliveryStatus === 'completed' ? 'default' :
+                                     item.deliveryStatus === 'partial' ? 'secondary' : 'outline'
+                                   }>
+                                     {item.deliveryStatus || 'pending'}
+                                   </Badge>
+                                 </TableCell>
+                                 <TableCell>
+                                   {remaining > 0 && (
+                                     <Button
+                                       size="sm"
+                                       variant="outline"
+                                       onClick={() => handlePartialDelivery(selectedPO, item)}
+                                     >
+                                       <Package className="h-3 w-3 mr-1" />
+                                       Record Delivery
+                                     </Button>
+                                   )}
+                                 </TableCell>
+                               </TableRow>
+                             );
+                           })}
+                         </TableBody>
+                       </Table>
+                     </CardContent>
+                   </Card>
+                 )}
 
               {/* Items Table */}
               <Card>
@@ -1389,33 +1592,132 @@ export default function PurchaseOrders() {
           )}
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-              Close
-            </Button>
-            {selectedPO?.status === "pending" && (
-              <>
-                <Button variant="destructive" onClick={() => {
-                  handleRejectPO(selectedPO);
-                  setIsViewDialogOpen(false);
-                }}>
-                  Reject
-                </Button>
-                <Button onClick={() => {
-                  handleApprovePO(selectedPO);
-                  setIsViewDialogOpen(false);
-                }}>
-                  Approve
-                </Button>
-              </>
-            )}
-            {selectedPO?.status === "approved" && (
-              <Button onClick={() => {
-                handleMarkDelivered(selectedPO);
-                setIsViewDialogOpen(false);
-              }}>
-                Mark as Delivered
+              <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                Close
               </Button>
-            )}
+              <Button 
+                variant="outline" 
+                onClick={() => handleDownloadPO(selectedPO)}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+              {selectedPO?.status === "approved" && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleCopyEmailTemplate(selectedPO)}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy Email Template
+                </Button>
+              )}
+              {selectedPO?.status === "pending" && (
+                <>
+                  <Button variant="destructive" onClick={() => {
+                    handleRejectPO(selectedPO);
+                    setIsViewDialogOpen(false);
+                  }}>
+                    Reject
+                  </Button>
+                  <Button onClick={() => {
+                    handleApprovePO(selectedPO);
+                    setIsViewDialogOpen(false);
+                  }}>
+                    Approve
+                  </Button>
+                </>
+              )}
+              {selectedPO?.status === "approved" && (
+                <Button onClick={() => {
+                  handleSendPO(selectedPO);
+                  setIsViewDialogOpen(false);
+                }}>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send to Supplier
+                </Button>
+              )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Partial Delivery Dialog */}
+      <Dialog open={isDeliveryDialogOpen} onOpenChange={setIsDeliveryDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record Partial Delivery</DialogTitle>
+            <DialogDescription>
+              Record delivery details for {selectedDeliveryItem?.materialName}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="deliveredQuantity">Delivered Quantity</Label>
+              <Input
+                id="deliveredQuantity"
+                type="number"
+                min="0"
+                max={selectedDeliveryItem ? selectedDeliveryItem.quantity - (selectedDeliveryItem.deliveredQuantity || 0) : 0}
+                value={deliveryData.deliveredQuantity}
+                onChange={(e) => setDeliveryData(prev => ({ 
+                  ...prev, 
+                  deliveredQuantity: parseFloat(e.target.value) || 0 
+                }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Remaining: {selectedDeliveryItem ? selectedDeliveryItem.quantity - (selectedDeliveryItem.deliveredQuantity || 0) : 0} {selectedDeliveryItem?.unit}
+              </p>
+            </div>
+            
+            <div>
+              <Label htmlFor="grnNumber">GRN Number</Label>
+              <Input
+                id="grnNumber"
+                value={deliveryData.grnNumber}
+                onChange={(e) => setDeliveryData(prev => ({ 
+                  ...prev, 
+                  grnNumber: e.target.value 
+                }))}
+                placeholder="Enter GRN number"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="qualityAccepted"
+                checked={deliveryData.qualityAccepted}
+                onChange={(e) => setDeliveryData(prev => ({ 
+                  ...prev, 
+                  qualityAccepted: e.target.checked 
+                }))}
+                className="rounded"
+              />
+              <Label htmlFor="qualityAccepted">Quality Accepted</Label>
+            </div>
+            
+            <div>
+              <Label htmlFor="inspectionNotes">Inspection Notes</Label>
+              <Textarea
+                id="inspectionNotes"
+                value={deliveryData.inspectionNotes}
+                onChange={(e) => setDeliveryData(prev => ({ 
+                  ...prev, 
+                  inspectionNotes: e.target.value 
+                }))}
+                placeholder="Quality inspection notes..."
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeliveryDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveDelivery}>
+              Record Delivery
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
