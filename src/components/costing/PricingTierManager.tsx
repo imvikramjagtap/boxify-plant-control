@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useAppSelector } from "@/store/hooks";
-import { selectCustomerAgreementByClientId, selectActiveSeasonalAdjustments } from "@/store/slices/quotationManagementSlice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, Calendar, Percent } from "lucide-react";
+import PricingHeader from "./pricing/PricingHeader";
+import CustomerAgreementAlert from "./pricing/CustomerAgreementAlert";
+import PricingSummaryCards from "./pricing/PricingSummaryCards";
+import PricingAdjustmentTable from "./pricing/PricingAdjustmentTable";
 
 interface PricingAdjustment {
   type: 'quantity_discount' | 'customer_agreement' | 'seasonal_adjustment' | 'loyalty_discount';
@@ -136,108 +135,22 @@ export default function PricingTierManager({
   const netAdjustment = totalPremium - totalDiscount;
   const finalPrice = basePrice + netAdjustment;
 
-  const getAdjustmentIcon = (type: string) => {
-    switch (type) {
-      case 'quantity_discount':
-      case 'customer_agreement':
-      case 'loyalty_discount':
-        return <Percent className="h-4 w-4 text-green-600" />;
-      case 'seasonal_adjustment':
-        return <Calendar className="h-4 w-4 text-orange-600" />;
-      default:
-        return <Users className="h-4 w-4" />;
-    }
-  };
-
-  const getAdjustmentColor = (type: string, applicable: boolean) => {
-    if (!applicable) return 'bg-gray-100 text-gray-600';
-    
-    switch (type) {
-      case 'quantity_discount':
-      case 'customer_agreement':
-      case 'loyalty_discount':
-        return 'bg-green-100 text-green-800';
-      case 'seasonal_adjustment':
-        return 'bg-orange-100 text-orange-800';
-      default:
-        return 'bg-blue-100 text-blue-800';
-    }
-  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Pricing Analysis</span>
-          <div className="text-right">
-            <div className="text-sm text-muted-foreground">Final Price</div>
-            <div className="font-semibold text-lg">₹{finalPrice.toFixed(2)}</div>
-            <div className={`text-sm ${netAdjustment >= 0 ? 'text-orange-600' : 'text-green-600'}`}>
-              {netAdjustment >= 0 ? '+' : ''}₹{netAdjustment.toFixed(2)} vs base
-            </div>
-          </div>
+        <CardTitle>
+          <PricingHeader finalPrice={finalPrice} netAdjustment={netAdjustment} />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {customerAgreement && (
-          <Alert>
-            <Users className="h-4 w-4" />
-            <AlertDescription>
-              Active customer agreement: <strong>{customerAgreement.agreementName}</strong>
-              <br />
-              Valid: {new Date(customerAgreement.validFrom).toLocaleDateString()} - {new Date(customerAgreement.validTo).toLocaleDateString()}
-            </AlertDescription>
-          </Alert>
+          <CustomerAgreementAlert customerAgreement={customerAgreement} />
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-sm text-green-600 font-medium">Total Discounts</div>
-            <div className="text-lg font-bold text-green-700">₹{totalDiscount.toFixed(2)}</div>
-          </div>
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <div className="text-sm text-orange-600 font-medium">Total Premiums</div>
-            <div className="text-lg font-bold text-orange-700">₹{totalPremium.toFixed(2)}</div>
-          </div>
-        </div>
+        <PricingSummaryCards totalDiscount={totalDiscount} totalPremium={totalPremium} />
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Adjustment Type</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Percentage</TableHead>
-              <TableHead className="text-right">Amount (₹)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pricingAdjustments.map((adjustment, index) => (
-              <TableRow key={index} className={!adjustment.applicable ? 'opacity-50' : ''}>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {getAdjustmentIcon(adjustment.type)}
-                    <Badge className={getAdjustmentColor(adjustment.type, adjustment.applicable)}>
-                      {adjustment.type.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                </TableCell>
-                <TableCell>{adjustment.description}</TableCell>
-                <TableCell className="text-right">
-                  {adjustment.percentage > 0 ? `${adjustment.percentage}%` : '-'}
-                </TableCell>
-                <TableCell className="text-right">
-                  {adjustment.applicable ? (
-                    <span className={adjustment.type === 'seasonal_adjustment' ? 'text-orange-600' : 'text-green-600'}>
-                      {adjustment.type === 'seasonal_adjustment' ? '+' : '-'}₹{adjustment.amount.toFixed(2)}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <PricingAdjustmentTable adjustments={pricingAdjustments} />
       </CardContent>
     </Card>
   );
