@@ -211,24 +211,69 @@ export interface BoxMaster {
   updatedAt: string;
 }
 
+// Costing & Quotation Types
+export interface RateConfiguration {
+  id: string;
+  name: string;
+  jwRate: number;
+  sheetInwardRate: number;
+  boxMakingRate: number;
+  printingCostRate: number;
+  accessoriesRate: number;
+  carriageOutward: number;
+  isDefault: boolean;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CostCalculation {
+  totalBoxWeightKg: number;
+  jwCharges: number;
+  sheetInwardCost: number;
+  boxMakingCost: number;
+  printingCost: number;
+  accessoriesCost: number;
+  mfgCostPerBox: number;
+  roiAmount: number;
+  totalCostPerBox: number;
+  totalPrice: number;
+}
+
+export interface QuotationDetails {
+  quotationId: string;
+  quotationDate: string;
+  finalSalePrice?: number;
+  rateFinalisedDate?: string;
+  validityDays: number;
+  paymentTerms: string;
+  deliveryTerms: string;
+  notes?: string;
+}
+
 export interface CostingProject {
   id: string;
+  quotationId: string;
   name: string;
   clientId: string;
   boxId: string;
   quantity: number;
-  materialCosts: Array<{
-    materialId: string;
-    quantity: number;
-    rate: number;
-    total: number;
-  }>;
-  laborCost: number;
-  overheadCost: number;
-  profitMargin: number;
-  totalCost: number;
-  quotedPrice: number;
-  status: "draft" | "quoted" | "approved" | "rejected";
+  // Rate configuration
+  jwRate: number;
+  sheetInwardRate: number;
+  boxMakingRate: number;
+  printingCostRate: number;
+  accessoriesRate: number;
+  roiPercentage: number;
+  carriageOutward: number;
+  // Box details (cached from box master)
+  boxName: string;
+  totalBoxWeight: number;
+  // Calculated costs
+  calculations: CostCalculation;
+  quotationDetails: QuotationDetails;
+  status: "draft" | "quoted" | "approved" | "rejected" | "converted";
   createdAt: string;
   updatedAt: string;
 }

@@ -9,6 +9,8 @@ import purchaseOrdersReducer from './slices/purchaseOrdersSlice';
 import boxMasterReducer from './slices/boxMasterSlice';
 import costingReducer from './slices/costingSlice';
 import stockMovementsReducer from './slices/stockMovementsSlice';
+import ratesReducer from './slices/ratesSlice';
+import calculationReducer from './slices/calculationSlice';
 
 const rootReducer = combineReducers({
   suppliers: suppliersReducer,
@@ -18,6 +20,8 @@ const rootReducer = combineReducers({
   boxMaster: boxMasterReducer,
   costing: costingReducer,
   stockMovements: stockMovementsReducer,
+  rates: ratesReducer,
+  calculations: calculationReducer,
 });
 
 const persistConfig = {

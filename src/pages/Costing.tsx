@@ -120,9 +120,9 @@ export default function Costing() {
         accessoriesRate: existingCosting.accessoriesRate,
         roiPercentage: existingCosting.roiPercentage,
         carriageOutward: existingCosting.carriageOutward,
-        quotationDate: existingCosting.quotationDate,
-        finalSalePrice: existingCosting.finalSalePrice,
-        rateFinalisedDate: existingCosting.rateFinalisedDate || "",
+        quotationDate: existingCosting.quotationDetails.quotationDate,
+        finalSalePrice: existingCosting.quotationDetails.finalSalePrice,
+        rateFinalisedDate: existingCosting.quotationDetails.rateFinalisedDate || "",
       };
     }
     return {
@@ -149,6 +149,7 @@ export default function Costing() {
 
   // Calculations state
   const [calculations, setCalculations] = useState({
+    totalBoxWeightKg: 0,
     jwCharges: 0,
     sheetInwardCost: 0,
     boxMakingCost: 0,
@@ -196,6 +197,7 @@ export default function Costing() {
       const totalPrice = totalCostPerBox * quantity;
 
       setCalculations({
+        totalBoxWeightKg,
         jwCharges,
         sheetInwardCost,
         boxMakingCost,
@@ -214,23 +216,30 @@ export default function Costing() {
     const selectedBoxData = mockBoxes.find(box => box.id === data.boxId);
     
     const costingData = {
+      quotationId: data.quotationId,
       name: `${selectedClient?.name || 'Unknown'} - ${selectedBoxData?.name || 'Unknown Box'}`,
       clientId: data.clientId,
       boxId: data.boxId,
       quantity: data.quantity,
-      materialCosts: [
-        {
-          materialId: "RM001", // Mock material ID
-          quantity: data.quantity,
-          rate: calculations.mfgCostPerBox,
-          total: calculations.totalPrice
-        }
-      ],
-      laborCost: calculations.jwCharges * data.quantity,
-      overheadCost: (calculations.sheetInwardCost + calculations.accessoriesCost) * data.quantity,
-      profitMargin: data.roiPercentage,
-      totalCost: calculations.mfgCostPerBox * data.quantity,
-      quotedPrice: data.finalSalePrice || calculations.totalPrice,
+      jwRate: data.jwRate,
+      sheetInwardRate: data.sheetInwardRate,
+      boxMakingRate: data.boxMakingRate,
+      printingCostRate: data.printingCostRate,
+      accessoriesRate: data.accessoriesRate,
+      roiPercentage: data.roiPercentage,
+      carriageOutward: data.carriageOutward,
+      boxName: selectedBoxData?.name || 'Unknown Box',
+      totalBoxWeight: selectedBoxData?.totalBoxWeight || 0,
+      calculations,
+      quotationDetails: {
+        quotationId: data.quotationId,
+        quotationDate: data.quotationDate,
+        finalSalePrice: data.finalSalePrice,
+        rateFinalisedDate: data.rateFinalisedDate,
+        validityDays: 30,
+        paymentTerms: "30 days from delivery",
+        deliveryTerms: "Ex-works"
+      },
       status: "draft" as const
     };
 
@@ -243,7 +252,7 @@ export default function Costing() {
     } else {
       dispatch(addCostingProject(costingData));
       toast({
-        title: "Costing Added",
+        title: "Costing Added", 
         description: "New costing record has been successfully added.",
       });
     }
@@ -691,7 +700,7 @@ export default function Costing() {
                   <CardTitle className="text-lg">{costing.id}</CardTitle>
                   <p className="text-sm text-muted-foreground">{costing.name}</p>
                 </div>
-                <Badge variant="outline">₹{(costing.totalCost/costing.quantity).toFixed(2)}/box</Badge>
+                <Badge variant="outline">₹{costing.calculations.totalCostPerBox.toFixed(2)}/box</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -702,7 +711,7 @@ export default function Costing() {
               
               <div>
                 <p className="text-sm font-medium">Quantity & Total</p>
-                <p className="text-sm text-muted-foreground">{costing.quantity.toLocaleString()} boxes • ₹{costing.quotedPrice.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">{costing.quantity.toLocaleString()} boxes • ₹{costing.calculations.totalPrice.toLocaleString()}</p>
               </div>
               
               <div>

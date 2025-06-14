@@ -11,20 +11,39 @@ const initialState: CostingState = {
   projects: [
     {
       id: "COST001",
+      quotationId: "QUO001",
       name: "ABC Retail - Small Box Order",
       clientId: "CLI001",
       boxId: "BOX001",
       quantity: 1000,
-      materialCosts: [
-        { materialId: "RM001", quantity: 2000, rate: 45.50, total: 91000 },
-        { materialId: "RM002", quantity: 100, rate: 85.00, total: 8500 },
-        { materialId: "RM003", quantity: 500, rate: 125.00, total: 62500 }
-      ],
-      laborCost: 15000,
-      overheadCost: 8000,
-      profitMargin: 20,
-      totalCost: 185000,
-      quotedPrice: 222000,
+      jwRate: 50,
+      sheetInwardRate: 2,
+      boxMakingRate: 1.5,
+      printingCostRate: 3,
+      accessoriesRate: 0.5,
+      roiPercentage: 20,
+      carriageOutward: 2,
+      boxName: "Monitor Packaging Box",
+      totalBoxWeight: 485.2,
+      calculations: {
+        totalBoxWeightKg: 0.4852,
+        jwCharges: 0.024,
+        sheetInwardCost: 0.970,
+        boxMakingCost: 1.5,
+        printingCost: 3,
+        accessoriesCost: 0.243,
+        mfgCostPerBox: 5.737,
+        roiAmount: 1.147,
+        totalCostPerBox: 8.884,
+        totalPrice: 8884
+      },
+      quotationDetails: {
+        quotationId: "QUO001",
+        quotationDate: "2024-01-01",
+        validityDays: 30,
+        paymentTerms: "30 days",
+        deliveryTerms: "Ex-works"
+      },
       status: "quoted",
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z"
