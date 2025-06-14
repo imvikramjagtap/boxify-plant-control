@@ -109,20 +109,20 @@ export default function Costing() {
   const getDefaultValues = (): FormValues => {
     if (existingCosting) {
       return {
-        quotationId: existingCosting.quotationId,
-        boxId: existingCosting.boxId,
-        clientId: existingCosting.clientId,
-        quantity: existingCosting.quantity,
-        jwRate: existingCosting.jwRate,
-        sheetInwardRate: existingCosting.sheetInwardRate,
-        boxMakingRate: existingCosting.boxMakingRate,
-        printingCostRate: existingCosting.printingCostRate,
-        accessoriesRate: existingCosting.accessoriesRate,
-        roiPercentage: existingCosting.roiPercentage,
-        carriageOutward: existingCosting.carriageOutward,
-        quotationDate: existingCosting.quotationDetails.quotationDate,
-        finalSalePrice: existingCosting.quotationDetails.finalSalePrice,
-        rateFinalisedDate: existingCosting.quotationDetails.rateFinalisedDate || "",
+        quotationId: existingCosting.quotationId || "",
+        boxId: existingCosting.boxId || "",
+        clientId: existingCosting.clientId || "",
+        quantity: existingCosting.quantity || 1000,
+        jwRate: existingCosting.jwRate || 50,
+        sheetInwardRate: existingCosting.sheetInwardRate || 2,
+        boxMakingRate: existingCosting.boxMakingRate || 1.5,
+        printingCostRate: existingCosting.printingCostRate || 3,
+        accessoriesRate: existingCosting.accessoriesRate || 0.5,
+        roiPercentage: existingCosting.roiPercentage || 15,
+        carriageOutward: existingCosting.carriageOutward || 2,
+        quotationDate: existingCosting.quotationDetails?.quotationDate || new Date().toISOString().split('T')[0],
+        finalSalePrice: existingCosting.quotationDetails?.finalSalePrice,
+        rateFinalisedDate: existingCosting.quotationDetails?.rateFinalisedDate || "",
       };
     }
     return {
@@ -700,7 +700,7 @@ export default function Costing() {
                   <CardTitle className="text-lg">{costing.id}</CardTitle>
                   <p className="text-sm text-muted-foreground">{costing.name}</p>
                 </div>
-                <Badge variant="outline">₹{costing.calculations.totalCostPerBox.toFixed(2)}/box</Badge>
+                <Badge variant="outline">₹{costing.calculations?.totalCostPerBox?.toFixed(2) || '0.00'}/box</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -711,7 +711,7 @@ export default function Costing() {
               
               <div>
                 <p className="text-sm font-medium">Quantity & Total</p>
-                <p className="text-sm text-muted-foreground">{costing.quantity.toLocaleString()} boxes • ₹{costing.calculations.totalPrice.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">{costing.quantity.toLocaleString()} boxes • ₹{(costing.calculations?.totalPrice || 0).toLocaleString()}</p>
               </div>
               
               <div>
