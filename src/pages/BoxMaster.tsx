@@ -208,6 +208,8 @@ export default function BoxMaster() {
   const [compressionStrength, setCompressionStrength] = useState(0);
   const [totalBoxWeight, setTotalBoxWeight] = useState(0);
   const [bsOfBox, setBsOfBox] = useState(0);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const length = watch("length");
   const width = watch("width");
@@ -815,7 +817,16 @@ export default function BoxMaster() {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            // Handle file upload logic here
+                            setUploadedFile(file);
+                            
+                            // Create preview URL for images
+                            if (file.type.startsWith('image/')) {
+                              const url = URL.createObjectURL(file);
+                              setPreviewUrl(url);
+                            } else {
+                              setPreviewUrl(null);
+                            }
+                            
                             console.log("Uploaded file:", file.name, file.type);
                           }
                         }}
@@ -823,6 +834,44 @@ export default function BoxMaster() {
                       <p className="text-sm text-muted-foreground mt-1">
                         Supported formats: JPG, PNG, PDF, SVG, BMP, TIFF
                       </p>
+                      
+                      {/* File Preview */}
+                      {uploadedFile && (
+                        <div className="mt-4 p-3 border rounded-lg bg-muted/50">
+                          <div className="flex items-center gap-3">
+                            {previewUrl ? (
+                              <img 
+                                src={previewUrl} 
+                                alt="Preview" 
+                                className="w-16 h-16 object-cover rounded border"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 bg-muted border rounded flex items-center justify-center text-muted-foreground text-xs">
+                                {uploadedFile.name.split('.').pop()?.toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{uploadedFile.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(uploadedFile.size / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setUploadedFile(null);
+                                setPreviewUrl(null);
+                                const input = document.getElementById('printingFile') as HTMLInputElement;
+                                if (input) input.value = '';
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
