@@ -8,34 +8,47 @@ import {
   TrendingUp,
   AlertCircle
 } from "lucide-react";
+import { useAppSelector } from "@/store/hooks";
 
 export default function Dashboard() {
-  // Mock data - will be replaced with real data later
+  // Get real data from Redux store
+  const clients = useAppSelector((state: any) => state.clients?.clients || []);
+  const boxDesigns = useAppSelector((state: any) => state.boxMaster?.boxes || []);
+  const rawMaterials = useAppSelector((state: any) => state.rawMaterials?.materials || []);
+  const purchaseOrders = useAppSelector((state: any) => state.purchaseOrders?.orders || []);
+
+  // Calculate real statistics
+  const activeClients = clients.filter(c => c.status === "Active").length;
+  const totalBoxDesigns = boxDesigns.length;
+  const totalRawMaterials = rawMaterials.length;
+  const lowStockMaterials = rawMaterials.filter(m => m.currentStock <= m.minimumStock);
+  const pendingPOs = purchaseOrders.filter(po => po.status === "pending").length;
+
   const stats = [
     {
       title: "Active Clients",
-      value: "24",
+      value: activeClients.toString(),
       icon: Users,
       change: "+12%",
       changeType: "positive" as const,
     },
     {
-      title: "Box Designs",
-      value: "156",
+      title: "Box Designs", 
+      value: totalBoxDesigns.toString(),
       icon: Package,
       change: "+5%",
       changeType: "positive" as const,
     },
     {
-      title: "Active Jobs",
-      value: "8",
+      title: "Pending POs",
+      value: pendingPOs.toString(),
       icon: FileText,
       change: "-2%",
       changeType: "negative" as const,
     },
     {
       title: "Raw Materials",
-      value: "127",
+      value: totalRawMaterials.toString(),
       icon: Package,
       change: "+8%",
       changeType: "positive" as const,
@@ -171,32 +184,38 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex items-start space-x-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
-                <div className="space-y-1">
-                  <div className="text-sm font-medium">Low Stock Alert</div>
-                  <div className="text-xs text-muted-foreground">
-                    White PVA Adhesive running low (150 KG remaining, min: 200 KG)
+              {/* Show real low stock alerts */}
+              {lowStockMaterials.length > 0 ? (
+                lowStockMaterials.slice(0, 3).map((material, index) => (
+                  <div key={material.id} className="flex items-start space-x-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">Low Stock Alert</div>
+                      <div className="text-xs text-muted-foreground">
+                        {material.name} running low ({material.currentStock} {material.unit} remaining, min: {material.minimumStock} {material.unit})
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex items-start space-x-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <AlertCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">All Stock Levels Good</div>
+                    <div className="text-xs text-muted-foreground">
+                      No materials are currently below minimum stock levels
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
               
+              {/* Mock alerts for other systems */}
               <div className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">Maintenance Due</div>
+                  <div className="text-sm font-medium">System Status</div>
                   <div className="text-xs text-muted-foreground">
-                    Production Line 2 scheduled for maintenance tomorrow
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-green-600 mt-0.5" />
-                <div className="space-y-1">
-                  <div className="text-sm font-medium">Quality Check</div>
-                  <div className="text-xs text-muted-foreground">
-                    JOB001 passed quality inspection - ready for dispatch
+                    All production systems running normally
                   </div>
                 </div>
               </div>
