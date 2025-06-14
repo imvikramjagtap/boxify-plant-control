@@ -10,13 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, Search, Package, AlertTriangle, TrendingDown, Eye, Settings, Check, ChevronsUpDown, ArrowUpDown, Filter } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, TrendingDown, Eye, Settings, Check, ChevronsUpDown, ArrowUpDown, Filter, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { 
   addMaterial, 
-  updateMaterial
+  updateMaterial,
+  deleteMaterial
 } from "@/store/slices/rawMaterialsSlice";
+import MaterialForm from "@/components/forms/MaterialForm";
+import { RawMaterial } from "@/store/types";
 
 const productTypes = [
   "Corrugated Sheets",
@@ -42,28 +45,6 @@ const unitsByProductType = {
   "Quality Control Equipment": ["Pieces"]
 };
 
-interface RawMaterial {
-  id: string;
-  name: string;
-  productType: string;
-  specifications: {
-    grade?: string;
-    thickness?: string;
-    dimensions?: string;
-    color?: string;
-    [key: string]: string | undefined;
-  };
-  unit: string;
-  currentStock: number;
-  minimumStock: number;
-  unitPrice: number;
-  supplierId: string;
-  supplierName: string;
-  batchNumber: string;
-  manufacturingDate: string;
-  receivedDate: string;
-  status: "In Stock" | "Low Stock" | "Out of Stock";
-}
 
 interface StockMovement {
   id: string;
@@ -85,8 +66,9 @@ export default function RawMaterials() {
   const [productFilter, setProductFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
-  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null);
   const [activeTab, setActiveTab] = useState("materials");
   const [supplierSearchOpen, setSupplierSearchOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -154,30 +136,8 @@ export default function RawMaterials() {
     }
   };
 
-  const handleSubmit = () => {
-    // Calculate status based on stock levels
-    let status: "In Stock" | "Low Stock" | "Out of Stock" = "In Stock";
-    if (formData.currentStock === 0) {
-      status = "Out of Stock";
-    } else if (formData.currentStock <= formData.minimumStock) {
-      status = "Low Stock";
-    }
-
-    dispatch(addMaterial({
-      name: formData.name,
-      productType: formData.productType,
-      specifications: formData.specifications,
-      unit: formData.unit,
-      currentStock: formData.currentStock,
-      minimumStock: formData.minimumStock,
-      unitPrice: formData.unitPrice,
-      supplierId: formData.supplierId,
-      supplierName: formData.supplierName,
-      batchNumber: formData.batchNumber,
-      manufacturingDate: formData.manufacturingDate,
-      receivedDate: formData.receivedDate,
-      status
-    }));
+  const handleAddMaterial = (data: any) => {
+    dispatch(addMaterial(data));
     
     toast({
       title: "Raw Material Added", 
@@ -185,7 +145,35 @@ export default function RawMaterials() {
     });
     
     setIsDialogOpen(false);
-    resetForm();
+  };
+
+  const handleEditMaterial = (data: any) => {
+    if (!selectedMaterial) return;
+    
+    dispatch(updateMaterial({
+      id: selectedMaterial.id,
+      updates: data
+    }));
+    
+    toast({
+      title: "Material Updated", 
+      description: "Raw material has been successfully updated.",
+    });
+    
+    setIsEditDialogOpen(false);
+    setSelectedMaterial(null);
+  };
+
+  const handleDeleteMaterial = (materialId: string) => {
+    if (confirm("Are you sure you want to delete this material? This action cannot be undone.")) {
+      dispatch(deleteMaterial(materialId));
+      
+      toast({
+        title: "Material Deleted", 
+        description: "Raw material has been successfully deleted.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleStockMovement = () => {
@@ -265,191 +253,33 @@ export default function RawMaterials() {
               Add Material
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Raw Material</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Material Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Enter material name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="productType">Product Type</Label>
-                  <Select
-                    value={formData.productType}
-                    onValueChange={(value) => setFormData({ ...formData, productType: value, unit: "" })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {productTypes.map((product) => (
-                        <SelectItem key={product} value={product}>
-                          {product}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+            <MaterialForm
+              mode="add"
+              onSubmit={handleAddMaterial}
+              onCancel={() => setIsDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
 
-              {formData.productType && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="unit">Unit</Label>
-                    <Select
-                      value={formData.unit}
-                      onValueChange={(value) => setFormData({ ...formData, unit: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {unitsByProductType[formData.productType as keyof typeof unitsByProductType]?.map((unit) => (
-                          <SelectItem key={unit} value={unit}>
-                            {unit}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="unitPrice">Unit Price (₹)</Label>
-                    <Input
-                      id="unitPrice"
-                      type="number"
-                      value={formData.unitPrice}
-                      onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
-                      placeholder="Enter unit price"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="currentStock">Current Stock</Label>
-                  <Input
-                    id="currentStock"
-                    type="number"
-                    value={formData.currentStock}
-                    onChange={(e) => setFormData({ ...formData, currentStock: parseInt(e.target.value) || 0 })}
-                    placeholder="Enter current stock"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="minimumStock">Minimum Stock Level</Label>
-                  <Input
-                    id="minimumStock"
-                    type="number"
-                    value={formData.minimumStock}
-                    onChange={(e) => setFormData({ ...formData, minimumStock: parseInt(e.target.value) || 0 })}
-                    placeholder="Enter minimum stock"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="batchNumber">Batch Number</Label>
-                  <Input
-                    id="batchNumber"
-                    value={formData.batchNumber}
-                    onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-                    placeholder="Enter batch number"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="supplier">Supplier</Label>
-                  <Popover open={supplierSearchOpen} onOpenChange={setSupplierSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={supplierSearchOpen}
-                        className="w-full justify-between"
-                        disabled={!formData.productType}
-                      >
-                        {selectedSupplier ? selectedSupplier.name : "Select supplier..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search suppliers..." className="h-9" />
-                        <CommandEmpty>No supplier found.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandList>
-                            {filteredSuppliers.map((supplier) => (
-                              <CommandItem
-                                key={supplier.id}
-                                value={supplier.name}
-                                onSelect={() => {
-                                  setFormData({ 
-                                    ...formData, 
-                                    supplierId: supplier.id, 
-                                    supplierName: supplier.name 
-                                  });
-                                  setSupplierSearchOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 ${
-                                    formData.supplierId === supplier.id ? "opacity-100" : "opacity-0"
-                                  }`}
-                                />
-                                {supplier.name}
-                              </CommandItem>
-                            ))}
-                          </CommandList>
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {!formData.productType && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Please select a product type first
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="manufacturingDate">Manufacturing Date</Label>
-                  <Input
-                    id="manufacturingDate"
-                    type="date"
-                    value={formData.manufacturingDate}
-                    onChange={(e) => setFormData({ ...formData, manufacturingDate: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="receivedDate">Received Date</Label>
-                  <Input
-                    id="receivedDate"
-                    type="date"
-                    value={formData.receivedDate}
-                    onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => { setIsDialogOpen(false); resetForm(); }}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit}>
-                Add Material
-              </Button>
-            </div>
+        {/* Edit Material Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Raw Material</DialogTitle>
+            </DialogHeader>
+            <MaterialForm
+              mode="edit"
+              initialData={selectedMaterial}
+              onSubmit={handleEditMaterial}
+              onCancel={() => {
+                setIsEditDialogOpen(false);
+                setSelectedMaterial(null);
+              }}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -605,7 +435,18 @@ export default function RawMaterials() {
                       <p className="text-sm text-muted-foreground">₹{material.unitPrice}</p>
                     </div>
                     
-                    <div className="flex justify-between pt-2">
+                    <div className="flex justify-between pt-2 gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedMaterial(material);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -952,6 +793,30 @@ export default function RawMaterials() {
                   <Label className="text-sm font-medium">Received Date</Label>
                   <p className="text-sm text-muted-foreground">{selectedMaterial.receivedDate}</p>
                 </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-2 pt-4 border-t">
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setIsDetailDialogOpen(false);
+                    setIsEditDialogOpen(true);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Material
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => {
+                    setIsDetailDialogOpen(false);
+                    handleDeleteMaterial(selectedMaterial.id);
+                    setSelectedMaterial(null);
+                  }}
+                >
+                  Delete Material
+                </Button>
               </div>
             </div>
           )}
