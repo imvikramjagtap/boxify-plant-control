@@ -13,9 +13,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Search, Settings, Calculator } from "lucide-react";
+import { ArrowLeft, Plus, Search, Settings, Calculator, FileText, TrendingUp, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import QuoteVersionManager from "@/components/costing/QuoteVersionManager";
+import MaterialCostCalculator from "@/components/costing/MaterialCostCalculator";
+import PricingTierManager from "@/components/costing/PricingTierManager";
 
 const schema = z.object({
   quotationId: z.string().min(1, "Quotation ID is required"),
@@ -144,6 +148,11 @@ export default function Costing() {
     totalPrice: 0
   });
 
+  // Advanced pricing states
+  const [materialCostAdjustment, setMaterialCostAdjustment] = useState(0);
+  const [materialCostData, setMaterialCostData] = useState([]);
+  const [pricingAdjustments, setPricingAdjustments] = useState([]);
+
   const boxId = watch("boxId");
   const quantity = watch("quantity");
   const jwRate = watch("jwRate");
@@ -246,6 +255,22 @@ export default function Costing() {
     setShowForm(false);
   };
 
+  const handleMaterialCostUpdate = (adjustment, materials) => {
+    setMaterialCostAdjustment(adjustment);
+    setMaterialCostData(materials);
+  };
+
+  const handlePricingUpdate = (adjustments) => {
+    setPricingAdjustments(adjustments);
+  };
+
+  // Calculate final price with all adjustments
+  const finalCalculatedPrice = calculations.totalPrice + materialCostAdjustment + 
+    pricingAdjustments.reduce((sum, adj) => {
+      if (adj.type === 'seasonal_adjustment') return sum + adj.amount;
+      return sum - adj.amount; // Discounts are negative
+    }, 0);
+
   const filteredCostings = costings.filter(costing =>
     costing.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     costing.id.toLowerCase().includes(searchTerm.toLowerCase())
@@ -262,387 +287,386 @@ export default function Costing() {
           <h1 className="text-xl md:text-2xl font-bold">{costingId ? 'Edit Costing' : 'Add New Costing'}</h1>
         </div>
         
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calculator className="h-5 w-5" />
-              BOX COSTING & QUOTATION
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
-              {/* Basic Information */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="quotationId">Quotation ID:</Label>
-                  <Controller
-                    name="quotationId"
-                    control={control}
-                    render={({ field }) => (
-                      <Input id="quotationId" {...field} className="bg-background" />
-                    )}
-                  />
-                  {errors.quotationId && <p className="text-destructive text-sm">{errors.quotationId.message}</p>}
-                </div>
-                
-                <div>
-                  <Label htmlFor="quotationDate">Quotation Date:</Label>
-                  <Controller
-                    name="quotationDate"
-                    control={control}
-                    render={({ field }) => (
-                      <Input id="quotationDate" type="date" {...field} className="bg-background" />
-                    )}
-                  />
-                  {errors.quotationDate && <p className="text-destructive text-sm">{errors.quotationDate.message}</p>}
-                </div>
+        <div className="w-full space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calculator className="h-5 w-5" />
+                BOX COSTING & QUOTATION
+                <Badge variant="outline" className="ml-auto">
+                  Final: ₹{finalCalculatedPrice.toFixed(2)}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="basic">Basic Info</TabsTrigger>
+                  <TabsTrigger value="materials">Materials</TabsTrigger>
+                  <TabsTrigger value="pricing">Pricing</TabsTrigger>
+                  <TabsTrigger value="versions">Versions</TabsTrigger>
+                </TabsList>
 
-                <div>
-                  <Label htmlFor="quantity">Quantity:</Label>
-                  <Controller
-                    name="quantity"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        id="quantity"
-                        type="number"
-                        {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                        className="bg-background"
-                      />
-                    )}
-                  />
-                  {errors.quantity && <p className="text-destructive text-sm">{errors.quantity.message}</p>}
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Box and Client Selection */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="boxId">Select Box:</Label>
-                  <Controller
-                    name="boxId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select Box" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {boxes.map((box) => (
-                            <SelectItem key={box.id} value={box.id}>
-                              {box.name} - {box.category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {errors.boxId && <p className="text-destructive text-sm">{errors.boxId.message}</p>}
-                </div>
-
-                <div>
-                  <Label htmlFor="clientId">Client:</Label>
-                  <Controller
-                    name="clientId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select Client" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {errors.clientId && <p className="text-destructive text-sm">{errors.clientId.message}</p>}
-                </div>
-              </div>
-
-              {selectedBox && (
-                <Card className="bg-muted/50">
-                  <CardContent className="pt-4">
-                    <h4 className="font-semibold mb-2">Box Details</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                      <div className="col-span-1">
-                        <span className="font-medium">Name:</span> {selectedBox.name}
-                      </div>
+                <TabsContent value="basic" className="space-y-6">
+                  <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    {/* Basic Information */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                       <div>
-                        <span className="font-medium">Dimensions:</span> {selectedBox.dimensions.length}×{selectedBox.dimensions.width}×{selectedBox.dimensions.height} cm
+                        <Label htmlFor="quotationId">Quotation ID:</Label>
+                        <Controller
+                          name="quotationId"
+                          control={control}
+                          render={({ field }) => (
+                            <Input id="quotationId" {...field} className="bg-background" />
+                          )}
+                        />
+                        {errors.quotationId && <p className="text-destructive text-sm">{errors.quotationId.message}</p>}
                       </div>
+                      
                       <div>
-                        <span className="font-medium">Category:</span> {selectedBox.category}
+                        <Label htmlFor="quotationDate">Quotation Date:</Label>
+                        <Controller
+                          name="quotationDate"
+                          control={control}
+                          render={({ field }) => (
+                            <Input id="quotationDate" type="date" {...field} className="bg-background" />
+                          )}
+                        />
+                        {errors.quotationDate && <p className="text-destructive text-sm">{errors.quotationDate.message}</p>}
                       </div>
+
                       <div>
-                        <span className="font-medium">Est. Cost:</span> ₹{selectedBox.estimatedCost.toFixed(2)}
+                        <Label htmlFor="quantity">Quantity:</Label>
+                        <Controller
+                          name="quantity"
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              id="quantity"
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              className="bg-background"
+                            />
+                          )}
+                        />
+                        {errors.quantity && <p className="text-destructive text-sm">{errors.quantity.message}</p>}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
 
-              <Separator />
-
-              {/* Rate Configuration */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Rate Configuration</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="jwRate">JW Rate (₹/kg):</Label>
-                    <Controller
-                      name="jwRate"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="jwRate"
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          className="bg-background"
+                    {/* Box and Client Selection */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="boxId">Select Box:</Label>
+                        <Controller
+                          name="boxId"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="bg-background">
+                                <SelectValue placeholder="Select Box" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {boxes.map((box) => (
+                                  <SelectItem key={box.id} value={box.id}>
+                                    {box.name} - {box.category}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         />
-                      )}
-                    />
-                    {errors.jwRate && <p className="text-destructive text-sm">{errors.jwRate.message}</p>}
-                  </div>
+                        {errors.boxId && <p className="text-destructive text-sm">{errors.boxId.message}</p>}
+                      </div>
 
-                  <div>
-                    <Label htmlFor="sheetInwardRate">Sheet Inward (₹/kg):</Label>
-                    <Controller
-                      name="sheetInwardRate"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="sheetInwardRate"
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          className="bg-background"
+                      <div>
+                        <Label htmlFor="clientId">Client:</Label>
+                        <Controller
+                          name="clientId"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="bg-background">
+                                <SelectValue placeholder="Select Client" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {clients.map((client) => (
+                                  <SelectItem key={client.id} value={client.id}>
+                                    {client.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         />
-                      )}
+                        {errors.clientId && <p className="text-destructive text-sm">{errors.clientId.message}</p>}
+                      </div>
+                    </div>
+
+                    {selectedBox && (
+                      <Card className="bg-muted/50 animate-fade-in">
+                        <CardContent className="pt-4">
+                          <h4 className="font-semibold mb-2">Box Details</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                            <div className="col-span-1">
+                              <span className="font-medium">Name:</span> {selectedBox.name}
+                            </div>
+                            <div>
+                              <span className="font-medium">Dimensions:</span> {selectedBox.dimensions.length}×{selectedBox.dimensions.width}×{selectedBox.dimensions.height} cm
+                            </div>
+                            <div>
+                              <span className="font-medium">Category:</span> {selectedBox.category}
+                            </div>
+                            <div>
+                              <span className="font-medium">Est. Cost:</span> ₹{selectedBox.estimatedCost.toFixed(2)}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Rate Configuration */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Rate Configuration</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                          <div>
+                            <Label htmlFor="jwRate">JW Rate (₹/kg):</Label>
+                            <Controller
+                              name="jwRate"
+                              control={control}
+                              render={({ field }) => (
+                                <Input
+                                  id="jwRate"
+                                  type="number"
+                                  step="0.01"
+                                  {...field}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="bg-background"
+                                />
+                              )}
+                            />
+                            {errors.jwRate && <p className="text-destructive text-sm">{errors.jwRate.message}</p>}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="sheetInwardRate">Sheet Inward (₹/kg):</Label>
+                            <Controller
+                              name="sheetInwardRate"
+                              control={control}
+                              render={({ field }) => (
+                                <Input
+                                  id="sheetInwardRate"
+                                  type="number"
+                                  step="0.01"
+                                  {...field}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="bg-background"
+                                />
+                              )}
+                            />
+                            {errors.sheetInwardRate && <p className="text-destructive text-sm">{errors.sheetInwardRate.message}</p>}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="boxMakingRate">Box Making (₹/box):</Label>
+                            <Controller
+                              name="boxMakingRate"
+                              control={control}
+                              render={({ field }) => (
+                                <Input
+                                  id="boxMakingRate"
+                                  type="number"
+                                  step="0.01"
+                                  {...field}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="bg-background"
+                                />
+                              )}
+                            />
+                            {errors.boxMakingRate && <p className="text-destructive text-sm">{errors.boxMakingRate.message}</p>}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="printingCostRate">Printing Cost (₹/box):</Label>
+                            <Controller
+                              name="printingCostRate"
+                              control={control}
+                              render={({ field }) => (
+                                <Input
+                                  id="printingCostRate"
+                                  type="number"
+                                  step="0.01"
+                                  {...field}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="bg-background"
+                                />
+                              )}
+                            />
+                            {errors.printingCostRate && <p className="text-destructive text-sm">{errors.printingCostRate.message}</p>}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="accessoriesRate">Accessories (₹/kg):</Label>
+                            <Controller
+                              name="accessoriesRate"
+                              control={control}
+                              render={({ field }) => (
+                                <Input
+                                  id="accessoriesRate"
+                                  type="number"
+                                  step="0.01"
+                                  {...field}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="bg-background"
+                                />
+                              )}
+                            />
+                            {errors.accessoriesRate && <p className="text-destructive text-sm">{errors.accessoriesRate.message}</p>}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="roiPercentage">ROI (%):</Label>
+                            <Controller
+                              name="roiPercentage"
+                              control={control}
+                              render={({ field }) => (
+                                <Input
+                                  id="roiPercentage"
+                                  type="number"
+                                  step="0.01"
+                                  {...field}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="bg-background"
+                                />
+                              )}
+                            />
+                            {errors.roiPercentage && <p className="text-destructive text-sm">{errors.roiPercentage.message}</p>}
+                          </div>
+
+                          <div>
+                            <Label htmlFor="carriageOutward">Carriage Outward (₹/box):</Label>
+                            <Controller
+                              name="carriageOutward"
+                              control={control}
+                              render={({ field }) => (
+                                <Input
+                                  id="carriageOutward"
+                                  type="number"
+                                  step="0.01"
+                                  {...field}
+                                  onChange={(e) => field.onChange(Number(e.target.value))}
+                                  className="bg-background"
+                                />
+                              )}
+                            />
+                            {errors.carriageOutward && <p className="text-destructive text-sm">{errors.carriageOutward.message}</p>}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Cost Breakdown */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Cost Breakdown</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Cost Component</TableHead>
+                                <TableHead>Rate/Formula</TableHead>
+                                <TableHead className="text-right">Amount (₹)</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              <TableRow>
+                                <TableCell>JW Charges</TableCell>
+                                <TableCell>Weight × JW Rate / 1000</TableCell>
+                                <TableCell className="text-right">₹{calculations.jwCharges.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Sheet Inward</TableCell>
+                                <TableCell>Weight × Sheet Rate</TableCell>
+                                <TableCell className="text-right">₹{calculations.sheetInwardCost.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Box Making</TableCell>
+                                <TableCell>Rate per box</TableCell>
+                                <TableCell className="text-right">₹{calculations.boxMakingCost.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Printing Cost</TableCell>
+                                <TableCell>Rate per box</TableCell>
+                                <TableCell className="text-right">₹{calculations.printingCost.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Accessories</TableCell>
+                                <TableCell>Weight × Accessories Rate</TableCell>
+                                <TableCell className="text-right">₹{calculations.accessoriesCost.toFixed(2)}</TableCell>
+                              </TableRow>
+                            </TableBody>
+                            <TableFooter>
+                              <TableRow>
+                                <TableCell colSpan={2} className="font-semibold">Base Cost Per Box</TableCell>
+                                <TableCell className="text-right font-semibold">₹{calculations.totalCostPerBox.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell colSpan={2} className="font-semibold">Material Cost Adjustment</TableCell>
+                                <TableCell className={`text-right font-semibold ${materialCostAdjustment >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                  {materialCostAdjustment >= 0 ? '+' : ''}₹{materialCostAdjustment.toFixed(2)}
+                                </TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell colSpan={2} className="font-bold text-lg">FINAL PRICE ({quantity} boxes)</TableCell>
+                                <TableCell className="text-right font-bold text-lg">₹{finalCalculatedPrice.toFixed(2)}</TableCell>
+                              </TableRow>
+                            </TableFooter>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+                      <Button type="submit" className="w-full sm:w-auto">{costingId ? 'Update' : 'Save'}</Button>
+                      <Button type="button" variant="outline" onClick={() => {setShowForm(false); navigate('/costing');}} className="w-full sm:w-auto">Cancel</Button>
+                    </div>
+                  </form>
+                </TabsContent>
+
+                <TabsContent value="materials">
+                  <MaterialCostCalculator 
+                    boxId={boxId} 
+                    quantity={quantity} 
+                    onCostUpdate={handleMaterialCostUpdate}
+                  />
+                </TabsContent>
+
+                <TabsContent value="pricing">
+                  <PricingTierManager 
+                    clientId={watch("clientId")} 
+                    quantity={quantity} 
+                    basePrice={calculations.totalPrice} 
+                    onPricingUpdate={handlePricingUpdate}
+                  />
+                </TabsContent>
+
+                <TabsContent value="versions">
+                  {watch("quotationId") && (
+                    <QuoteVersionManager 
+                      quotationId={watch("quotationId")} 
+                      costingProjectId={costingId || ""} 
                     />
-                    {errors.sheetInwardRate && <p className="text-destructive text-sm">{errors.sheetInwardRate.message}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="boxMakingRate">Box Making (₹/box):</Label>
-                    <Controller
-                      name="boxMakingRate"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="boxMakingRate"
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          className="bg-background"
-                        />
-                      )}
-                    />
-                    {errors.boxMakingRate && <p className="text-destructive text-sm">{errors.boxMakingRate.message}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="printingCostRate">Printing Cost (₹/box):</Label>
-                    <Controller
-                      name="printingCostRate"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="printingCostRate"
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          className="bg-background"
-                        />
-                      )}
-                    />
-                    {errors.printingCostRate && <p className="text-destructive text-sm">{errors.printingCostRate.message}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="accessoriesRate">Accessories (₹/kg):</Label>
-                    <Controller
-                      name="accessoriesRate"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="accessoriesRate"
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          className="bg-background"
-                        />
-                      )}
-                    />
-                    {errors.accessoriesRate && <p className="text-destructive text-sm">{errors.accessoriesRate.message}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="roiPercentage">ROI (%):</Label>
-                    <Controller
-                      name="roiPercentage"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="roiPercentage"
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          className="bg-background"
-                        />
-                      )}
-                    />
-                    {errors.roiPercentage && <p className="text-destructive text-sm">{errors.roiPercentage.message}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="carriageOutward">Carriage Outward (₹/box):</Label>
-                    <Controller
-                      name="carriageOutward"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="carriageOutward"
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          className="bg-background"
-                        />
-                      )}
-                    />
-                    {errors.carriageOutward && <p className="text-destructive text-sm">{errors.carriageOutward.message}</p>}
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Cost Calculation Table */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Cost Breakdown</h3>
-                <div className="overflow-x-auto -mx-4 px-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Cost Component</TableHead>
-                        <TableHead>Rate/Formula</TableHead>
-                        <TableHead className="text-right">Amount (₹)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell>JW Charges</TableCell>
-                        <TableCell>Weight × JW Rate / 1000</TableCell>
-                        <TableCell className="text-right">₹{calculations.jwCharges.toFixed(2)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Sheet Inward</TableCell>
-                        <TableCell>Weight × Sheet Rate</TableCell>
-                        <TableCell className="text-right">₹{calculations.sheetInwardCost.toFixed(2)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Box Making</TableCell>
-                        <TableCell>Rate per box</TableCell>
-                        <TableCell className="text-right">₹{calculations.boxMakingCost.toFixed(2)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Printing Cost</TableCell>
-                        <TableCell>Rate per box</TableCell>
-                        <TableCell className="text-right">₹{calculations.printingCost.toFixed(2)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Accessories</TableCell>
-                        <TableCell>Weight × Accessories Rate</TableCell>
-                        <TableCell className="text-right">₹{calculations.accessoriesCost.toFixed(2)}</TableCell>
-                      </TableRow>
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow>
-                        <TableCell colSpan={2} className="font-semibold">Mfg. Cost of Box</TableCell>
-                        <TableCell className="text-right font-semibold">₹{calculations.mfgCostPerBox.toFixed(2)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>ROI ({roiPercentage}%)</TableCell>
-                        <TableCell>Mfg Cost × ROI%</TableCell>
-                        <TableCell className="text-right">₹{calculations.roiAmount.toFixed(2)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Carriage Outward</TableCell>
-                        <TableCell>Per box</TableCell>
-                        <TableCell className="text-right">₹{carriageOutward.toFixed(2)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={2} className="font-bold">TOTAL COST PER BOX</TableCell>
-                        <TableCell className="text-right font-bold">₹{calculations.totalCostPerBox.toFixed(2)}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={2} className="font-bold text-lg">TOTAL PRICE ({quantity} boxes)</TableCell>
-                        <TableCell className="text-right font-bold text-lg">₹{calculations.totalPrice.toFixed(2)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Final Quotation Details */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Final Quotation Details</h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="finalSalePrice">Final Sale Price Negotiated (₹):</Label>
-                    <Controller
-                      name="finalSalePrice"
-                      control={control}
-                      render={({ field }) => (
-                        <Input
-                          id="finalSalePrice"
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                          className="bg-background"
-                        />
-                      )}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="rateFinalisedDate">Rate Finalised on Date:</Label>
-                    <Controller
-                      name="rateFinalisedDate"
-                      control={control}
-                      render={({ field }) => (
-                        <Input id="rateFinalisedDate" type="date" {...field} className="bg-background" />
-                      )}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-                <Button type="submit" className="w-full sm:w-auto">{costingId ? 'Update' : 'Save'}</Button>
-                <Button type="button" variant="outline" onClick={() => {setShowForm(false); navigate('/costing');}} className="w-full sm:w-auto">Cancel</Button>
-              </div>
-            </form> 
-          </CardContent>
-        </Card>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
