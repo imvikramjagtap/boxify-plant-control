@@ -36,7 +36,7 @@ export default function Clients() {
   const [industryFilter, setIndustryFilter] = useState<string>("all");
   
   // Get clients from Redux store
-  const clients = useAppSelector((state: any) => state.clients.clients);
+  const clients = useAppSelector((state: any) => state.clients?.clients || []);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -53,8 +53,8 @@ export default function Clients() {
   });
 
   const filteredClients = clients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         client.productType.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         client.productType?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesIndustry = industryFilter === "all" || client.industryType === industryFilter;
     return matchesSearch && matchesIndustry;
   });
@@ -75,7 +75,7 @@ export default function Clients() {
           address: client.address,
           pinCode: client.pinCode,
           contactPersons: client.contactPersons,
-          associatedItems: client.associatedItems.length > 0 ? client.associatedItems : [""]
+          associatedItems: client.associatedItems?.length > 0 ? client.associatedItems : [""]
         });
         setIsDialogOpen(true);
       }
@@ -491,21 +491,21 @@ export default function Clients() {
                 </div>
               )}
 
-              {client.associatedItems.length > 0 && (
+              {client.associatedItems?.length > 0 && (
                 <div>
                   <p className="text-sm font-medium flex items-center">
                     <Package className="h-3 w-3 mr-1" />
-                    Associated Items ({client.associatedItems.length})
+                    Associated Items ({client.associatedItems?.length || 0})
                   </p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {client.associatedItems.slice(0, 3).map((item, index) => (
+                    {(client.associatedItems || []).slice(0, 3).map((item, index) => (
                       <Badge key={index} variant="outline" className="text-xs">
                         {item}
                       </Badge>
                     ))}
-                    {client.associatedItems.length > 3 && (
+                    {(client.associatedItems?.length || 0) > 3 && (
                       <Badge variant="outline" className="text-xs">
-                        +{client.associatedItems.length - 3} more
+                        +{(client.associatedItems?.length || 0) - 3} more
                       </Badge>
                     )}
                   </div>
