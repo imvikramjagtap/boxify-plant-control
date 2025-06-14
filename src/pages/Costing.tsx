@@ -72,25 +72,7 @@ interface CostingRecord {
   createdAt: string;
 }
 
-// Mock data for boxes - in real app this would come from Redux
-const mockBoxes = [
-  { 
-    id: "BOX001", 
-    name: "Monitor Packaging Box", 
-    itemCode: "MPB-001",
-    totalBoxWeight: 485.2,
-    dimensions: "520×380×400",
-    ply: "5 Ply"
-  },
-  { 
-    id: "BOX002", 
-    name: "Laptop Box", 
-    itemCode: "LB-002",
-    totalBoxWeight: 320.5,
-    dimensions: "400×300×50",
-    ply: "3 Ply"
-  }
-];
+// Get boxes from Redux store - no longer using mock data
 
 export default function Costing() {
   const { costingId } = useParams<{ costingId: string }>();
@@ -103,6 +85,7 @@ export default function Costing() {
   // Get data from Redux store
   const costings = useAppSelector((state: any) => state.costing.projects);
   const clients = useAppSelector((state: any) => state.clients.clients);
+  const boxes = useAppSelector((state: any) => state.boxMaster.boxes);
 
   const existingCosting = costingId ? costings.find(cost => cost.id === costingId) : null;
 
@@ -171,11 +154,14 @@ export default function Costing() {
   const roiPercentage = watch("roiPercentage");
   const carriageOutward = watch("carriageOutward");
 
-  const selectedBox = mockBoxes.find(box => box.id === boxId);
+  const selectedBox = boxes.find(box => box.id === boxId);
 
   useEffect(() => {
     if (selectedBox) {
-      const totalBoxWeightKg = selectedBox.totalBoxWeight / 1000; // Convert grams to kg
+      // Calculate estimated weight from box dimensions (L x W x H) in cm and assume cardboard density
+      const volume = selectedBox.dimensions.length * selectedBox.dimensions.width * selectedBox.dimensions.height; // cm³
+      const estimatedWeightGrams = volume * 0.5; // Approximate cardboard density (0.5 g/cm³)
+      const totalBoxWeightKg = estimatedWeightGrams / 1000; // Convert grams to kg
       
       // Calculate costs based on formulas from the image
       const jwCharges = (totalBoxWeightKg * jwRate) / 1000; // JW Rate per kg
@@ -213,7 +199,7 @@ export default function Costing() {
 
   const onSubmit = (data: FormValues) => {
     const selectedClient = clients.find(client => client.id === data.clientId);
-    const selectedBoxData = mockBoxes.find(box => box.id === data.boxId);
+    const selectedBoxData = boxes.find(box => box.id === data.boxId);
     
     const costingData = {
       quotationId: data.quotationId,
@@ -229,7 +215,7 @@ export default function Costing() {
       roiPercentage: data.roiPercentage,
       carriageOutward: data.carriageOutward,
       boxName: selectedBoxData?.name || 'Unknown Box',
-      totalBoxWeight: selectedBoxData?.totalBoxWeight || 0,
+      totalBoxWeight: selectedBoxData?.estimatedCost || 0, // Using estimatedCost as placeholder since totalBoxWeight doesn't exist
       calculations,
       quotationDetails: {
         quotationId: data.quotationId,
@@ -345,9 +331,9 @@ export default function Costing() {
                           <SelectValue placeholder="Select Box" />
                         </SelectTrigger>
                         <SelectContent>
-                          {mockBoxes.map((box) => (
+                          {boxes.map((box) => (
                             <SelectItem key={box.id} value={box.id}>
-                              {box.name} ({box.itemCode}) - {box.ply}
+                              {box.name} - {box.category}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -390,13 +376,13 @@ export default function Costing() {
                         <span className="font-medium">Name:</span> {selectedBox.name}
                       </div>
                       <div>
-                        <span className="font-medium">Dimensions:</span> {selectedBox.dimensions} mm
+                        <span className="font-medium">Dimensions:</span> {selectedBox.dimensions.length}×{selectedBox.dimensions.width}×{selectedBox.dimensions.height} cm
                       </div>
                       <div>
-                        <span className="font-medium">Ply:</span> {selectedBox.ply}
+                        <span className="font-medium">Category:</span> {selectedBox.category}
                       </div>
                       <div>
-                        <span className="font-medium">Weight:</span> {selectedBox.totalBoxWeight.toFixed(2)} gm
+                        <span className="font-medium">Est. Cost:</span> ₹{selectedBox.estimatedCost.toFixed(2)}
                       </div>
                     </div>
                   </CardContent>
