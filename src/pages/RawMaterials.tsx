@@ -76,10 +76,10 @@ export default function RawMaterials() {
   const [movementSortOrder, setMovementSortOrder] = useState<"asc" | "desc">("desc");
   const [materialFilter, setMaterialFilter] = useState<string>("all");
 
-  // Get data from Redux store
-  const materials = useAppSelector((state: any) => state.rawMaterials.materials);
-  const suppliers = useAppSelector((state: any) => state.suppliers.suppliers);
-  const stockMovements = useAppSelector((state: any) => state.stockMovements.movements);
+  // Get data from Redux store with safe defaults
+  const materials = useAppSelector((state: any) => state.rawMaterials?.materials || []);
+  const suppliers = useAppSelector((state: any) => state.suppliers?.suppliers || []);
+  const stockMovements = useAppSelector((state: any) => state.stockMovements?.movements || []);
 
   const [formData, setFormData] = useState({
     name: "",
