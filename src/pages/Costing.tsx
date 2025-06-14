@@ -301,13 +301,13 @@ export default function Costing() {
 
   if (showForm || costingId) {
     return (
-      <div className="p-6 max-w-6xl mx-auto">
+      <div className="p-4 w-full max-w-none">
         <div className="flex items-center mb-6">
           <Button variant="ghost" onClick={() => {setShowForm(false); navigate('/costing');}} className="mr-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <h1 className="text-2xl font-bold">{costingId ? 'Edit Costing' : 'Add New Costing'}</h1>
+          <h1 className="text-xl md:text-2xl font-bold">{costingId ? 'Edit Costing' : 'Add New Costing'}</h1>
         </div>
         
         <Card className="w-full">
@@ -318,9 +318,9 @@ export default function Costing() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
               {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="quotationId">Quotation ID:</Label>
                   <Controller
@@ -367,7 +367,7 @@ export default function Costing() {
               <Separator />
 
               {/* Box and Client Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="boxId">Select Box:</Label>
                   <Controller
@@ -419,8 +419,8 @@ export default function Costing() {
                 <Card className="bg-muted/50">
                   <CardContent className="pt-4">
                     <h4 className="font-semibold mb-2">Box Details</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                      <div className="col-span-1">
                         <span className="font-medium">Name:</span> {selectedBox.name}
                       </div>
                       <div>
@@ -442,7 +442,7 @@ export default function Costing() {
               {/* Rate Configuration */}
               <div>
                 <h3 className="text-lg font-semibold mb-4">Rate Configuration</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="jwRate">JW Rate (₹/kg):</Label>
                     <Controller
@@ -583,7 +583,7 @@ export default function Costing() {
               {/* Cost Calculation Table */}
               <div>
                 <h3 className="text-lg font-semibold mb-4">Cost Breakdown</h3>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-4 px-4">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -652,7 +652,7 @@ export default function Costing() {
               {/* Final Quotation Details */}
               <div>
                 <h3 className="text-lg font-semibold mb-4">Final Quotation Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="finalSalePrice">Final Sale Price Negotiated (₹):</Label>
                     <Controller
@@ -684,9 +684,9 @@ export default function Costing() {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2">
-                <Button type="submit">{costingId ? 'Update' : 'Save'}</Button>
-                <Button type="button" variant="outline" onClick={() => {setShowForm(false); navigate('/costing');}}>Cancel</Button>
+              <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+                <Button type="submit" className="w-full sm:w-auto">{costingId ? 'Update' : 'Save'}</Button>
+                <Button type="button" variant="outline" onClick={() => {setShowForm(false); navigate('/costing');}} className="w-full sm:w-auto">Cancel</Button>
               </div>
             </form> 
           </CardContent>

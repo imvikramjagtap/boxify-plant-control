@@ -424,22 +424,22 @@ export default function BoxMaster() {
 
   if (showForm || boxId) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-4 w-full max-w-none">
         <div className="flex items-center mb-6">
           <Button variant="ghost" onClick={() => {setShowForm(false); navigate('/boxes');}} className="mr-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <h1 className="text-2xl font-bold">{boxId ? 'Edit Box' : 'Add New Box'}</h1>
+          <h1 className="text-xl md:text-2xl font-bold">{boxId ? 'Edit Box' : 'Add New Box'}</h1>
         </div>
         
-        <Card className="w-full max-w-4xl mx-auto">
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>BOX MASTER CARD</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="boxName">Box Name:</Label>
                   <Controller
@@ -488,7 +488,7 @@ export default function BoxMaster() {
 
               <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="ply">Ply:</Label>
                   <Controller
@@ -577,7 +577,7 @@ export default function BoxMaster() {
 
               <div>
                 <h3 className="text-lg font-semibold mb-2">Dimensions:</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="length">Length:</Label>
                     <Controller
@@ -648,7 +648,7 @@ export default function BoxMaster() {
 
               <div>
                 <h3 className="text-lg font-semibold mb-2">Calculated Dimensions:</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label>Outer Length:</Label>
                     <Input value={outerDim.length} readOnly className="bg-muted" />
@@ -746,7 +746,7 @@ export default function BoxMaster() {
                   <Label htmlFor="printing">Enable Printing</Label>
                 </div>
                 {printing && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="numberOfColors">No. of Colours:</Label>
                       <Controller
@@ -789,7 +789,7 @@ export default function BoxMaster() {
                     </div>
                     <div className="col-span-full">
                       <Label>Colour Code:</Label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                         {watch("colorCode")?.map((color, index) => (
                           <Controller
                             key={index}
@@ -881,7 +881,7 @@ export default function BoxMaster() {
 
               <div>
                 <h3 className="text-lg font-semibold mb-2">Paper Specifications:</h3>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-4 px-4">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -962,7 +962,7 @@ export default function BoxMaster() {
 
               <div>
                 <h3 className="text-lg font-semibold mb-2">Other Details:</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="contentWeight">Content Weight (kg):</Label>
                     <Controller
@@ -1025,9 +1025,9 @@ export default function BoxMaster() {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2">
-                <Button type="submit">{boxId ? 'Update' : 'Save'}</Button>
-                <Button type="button" variant="outline" onClick={() => {setShowForm(false); navigate('/boxes');}}>Cancel</Button>
+              <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+                <Button type="submit" className="w-full sm:w-auto">{boxId ? 'Update' : 'Save'}</Button>
+                <Button type="button" variant="outline" onClick={() => {setShowForm(false); navigate('/boxes');}} className="w-full sm:w-auto">Cancel</Button>
               </div>
             </form> 
           </CardContent>
