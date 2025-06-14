@@ -1,0 +1,434 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Search, Settings, Package } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface ContactPerson {
+  name: string;
+  phone: string;
+}
+
+interface Client {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  gstNumber: string;
+  productType: string;
+  state: string;
+  address: string;
+  pinCode: string;
+  contactPersons: ContactPerson[];
+  associatedItems: string[];
+  status: "Active" | "Inactive";
+}
+
+export default function Clients() {
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [clients, setClients] = useState<Client[]>([
+    {
+      id: "CLI001",
+      name: "ABC Industries Pvt Ltd",
+      email: "procurement@abcindustries.com",
+      phone: "+91 9876543220",
+      gstNumber: "27CCCCC0000C1Z5",
+      productType: "Electronics Packaging",
+      state: "Maharashtra",
+      address: "789 Industrial Estate, Pune",
+      pinCode: "411001",
+      contactPersons: [
+        { name: "Suresh Gupta", phone: "+91 9876543221" },
+        { name: "Meera Joshi", phone: "+91 9876543222" }
+      ],
+      associatedItems: ["Monitor Boxes", "CPU Packaging", "Accessory Boxes"],
+      status: "Active"
+    },
+    {
+      id: "CLI002",
+      name: "XYZ Corp",
+      email: "orders@xyzcorp.com", 
+      phone: "+91 9876543223",
+      gstNumber: "29DDDDD0000D1Z5",
+      productType: "FMCG Packaging",
+      state: "Karnataka",
+      address: "321 Commercial Complex, Mysore",
+      pinCode: "570001",
+      contactPersons: [
+        { name: "Ravi Kumar", phone: "+91 9876543224" }
+      ],
+      associatedItems: ["Soap Boxes", "Shampoo Packaging"],
+      status: "Active"
+    }
+  ]);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    gstNumber: "",
+    productType: "",
+    state: "",
+    address: "",
+    pinCode: "",
+    contactPersons: [{ name: "", phone: "" }],
+    associatedItems: [""]
+  });
+
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.productType.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSubmit = () => {
+    const newClient: Client = {
+      id: `CLI${String(clients.length + 1).padStart(3, '0')}`,
+      ...formData,
+      associatedItems: formData.associatedItems.filter(item => item.trim() !== ""),
+      status: "Active"
+    };
+    
+    setClients([...clients, newClient]);
+    setIsDialogOpen(false);
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      gstNumber: "",
+      productType: "",
+      state: "",
+      address: "",
+      pinCode: "",
+      contactPersons: [{ name: "", phone: "" }],
+      associatedItems: [""]
+    });
+    
+    toast({
+      title: "Client Added",
+      description: "New client has been successfully added to the system.",
+    });
+  };
+
+  const addContactPerson = () => {
+    setFormData({
+      ...formData,
+      contactPersons: [...formData.contactPersons, { name: "", phone: "" }]
+    });
+  };
+
+  const removeContactPerson = (index: number) => {
+    const updatedContacts = formData.contactPersons.filter((_, i) => i !== index);
+    setFormData({ ...formData, contactPersons: updatedContacts });
+  };
+
+  const updateContactPerson = (index: number, field: 'name' | 'phone', value: string) => {
+    const updatedContacts = formData.contactPersons.map((contact, i) =>
+      i === index ? { ...contact, [field]: value } : contact
+    );
+    setFormData({ ...formData, contactPersons: updatedContacts });
+  };
+
+  const addAssociatedItem = () => {
+    setFormData({
+      ...formData,
+      associatedItems: [...formData.associatedItems, ""]
+    });
+  };
+
+  const removeAssociatedItem = (index: number) => {
+    const updatedItems = formData.associatedItems.filter((_, i) => i !== index);
+    setFormData({ ...formData, associatedItems: updatedItems });
+  };
+
+  const updateAssociatedItem = (index: number, value: string) => {
+    const updatedItems = formData.associatedItems.map((item, i) =>
+      i === index ? value : item
+    );
+    setFormData({ ...formData, associatedItems: updatedItems });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Client Master</h1>
+          <p className="text-muted-foreground">
+            Manage your client database and associated products
+          </p>
+        </div>
+        
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Client
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add New Client</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Client Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter client name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="Enter email address"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="gstNumber">GST Number</Label>
+                  <Input
+                    id="gstNumber"
+                    value={formData.gstNumber}
+                    onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
+                    placeholder="Enter GST number"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="productType">Product Type</Label>
+                  <Input
+                    id="productType"
+                    value={formData.productType}
+                    onChange={(e) => setFormData({ ...formData, productType: e.target.value })}
+                    placeholder="Enter product type"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    value={formData.state}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    placeholder="Enter state"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="address">Address</Label>
+                <Textarea
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Enter complete address"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="pinCode">Pin Code</Label>
+                <Input
+                  id="pinCode"
+                  value={formData.pinCode}
+                  onChange={(e) => setFormData({ ...formData, pinCode: e.target.value })}
+                  placeholder="Enter pin code"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <Label>Contact Persons</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addContactPerson}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Contact
+                  </Button>
+                </div>
+                {formData.contactPersons.map((contact, index) => (
+                  <div key={index} className="grid grid-cols-2 gap-2 mb-2">
+                    <Input
+                      placeholder="Contact person name"
+                      value={contact.name}
+                      onChange={(e) => updateContactPerson(index, 'name', e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Phone number"
+                        value={contact.phone}
+                        onChange={(e) => updateContactPerson(index, 'phone', e.target.value)}
+                      />
+                      {formData.contactPersons.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeContactPerson(index)}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <Label>Associated Items</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addAssociatedItem}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Item
+                  </Button>
+                </div>
+                {formData.associatedItems.map((item, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <Input
+                      placeholder="Enter item/product name"
+                      value={item}
+                      onChange={(e) => updateAssociatedItem(index, e.target.value)}
+                    />
+                    {formData.associatedItems.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeAssociatedItem(index)}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit}>
+                Add Client
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Search */}
+      <div className="flex items-center space-x-2">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search clients..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+      </div>
+
+      {/* Clients Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredClients.map((client) => (
+          <Card key={client.id} className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-lg">{client.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{client.id}</p>
+                </div>
+                <Badge variant={client.status === "Active" ? "default" : "secondary"}>
+                  {client.status}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <p className="text-sm font-medium">Product Type</p>
+                <p className="text-sm text-muted-foreground">{client.productType}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium">Contact</p>
+                <p className="text-sm text-muted-foreground">{client.email}</p>
+                <p className="text-sm text-muted-foreground">{client.phone}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium">Location</p>
+                <p className="text-sm text-muted-foreground">{client.state} - {client.pinCode}</p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">GST Number</p>
+                <p className="text-sm text-muted-foreground">{client.gstNumber}</p>
+              </div>
+
+              {client.contactPersons.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium">Contact Persons</p>
+                  {client.contactPersons.map((contact, index) => (
+                    <p key={index} className="text-sm text-muted-foreground">
+                      {contact.name} - {contact.phone}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {client.associatedItems.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium flex items-center">
+                    <Package className="h-3 w-3 mr-1" />
+                    Associated Items ({client.associatedItems.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {client.associatedItems.slice(0, 3).map((item, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {item}
+                      </Badge>
+                    ))}
+                    {client.associatedItems.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{client.associatedItems.length - 3} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm">
+                  <Settings className="h-3 w-3 mr-1" />
+                  Edit
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
