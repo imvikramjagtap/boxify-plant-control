@@ -168,7 +168,7 @@ export default function PurchaseOrders() {
   const selectedSupplier = suppliers.find(s => s.id === newPO.supplierId);
   const availableMaterials = selectedSupplier 
     ? rawMaterials.filter(m => 
-        m.suppliers.some(supplier => supplier.supplierId === selectedSupplier.id)
+        m.suppliers && m.suppliers.some(supplier => supplier.supplierId === selectedSupplier.id)
       )
     : [];
 

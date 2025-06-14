@@ -42,6 +42,8 @@ export default function DeliveryTrackingTable({
   });
 
   const handleDeliveryRecord = (item: POItem) => {
+    if (!item) return;
+    
     setSelectedItem(item);
     const remainingQuantity = item.quantity - (item.deliveredQuantity || 0);
     setDeliveryData({
@@ -80,7 +82,7 @@ export default function DeliveryTrackingTable({
   };
 
   const getRemainingQuantity = (item: POItem) => {
-    return item.quantity - (item.deliveredQuantity || 0);
+    return item ? item.quantity - (item.deliveredQuantity || 0) : 0;
   };
 
   const getDeliveryProgress = (item: POItem) => {
@@ -210,7 +212,7 @@ export default function DeliveryTrackingTable({
                 id="deliveredQuantity"
                 type="number"
                 min="1"
-                max={getRemainingQuantity(selectedItem!)}
+                max={selectedItem ? getRemainingQuantity(selectedItem) : 0}
                 value={deliveryData.deliveredQuantity}
                 onChange={(e) => setDeliveryData({
                   ...deliveryData,
