@@ -660,6 +660,8 @@ export default function Costing() {
                     <QuoteVersionManager 
                       quotationId={watch("quotationId")} 
                       costingProjectId={costingId || ""} 
+                      currentQuoteStatus="draft"
+                      onStatusChange={() => {}}
                     />
                   )}
                 </TabsContent>

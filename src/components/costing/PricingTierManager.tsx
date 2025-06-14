@@ -19,7 +19,7 @@ interface PricingTierManagerProps {
   clientId: string;
   quantity: number;
   basePrice: number;
-  onPricingUpdate: (adjustments: PricingAdjustment[]) => void;
+  onPricingUpdate: (adjustments: PricingAdjustment[], finalPrice: number) => void;
 }
 
 export default function PricingTierManager({ 
@@ -116,7 +116,13 @@ export default function PricingTierManager({
     }
 
     setPricingAdjustments(adjustments);
-    onPricingUpdate(adjustments);
+    const netAdjustment = adjustments
+      .filter(adj => adj.applicable && adj.type === 'seasonal_adjustment')
+      .reduce((sum, adj) => sum + adj.amount, 0) - 
+      adjustments
+      .filter(adj => adj.applicable && (adj.type === 'quantity_discount' || adj.type === 'customer_agreement' || adj.type === 'loyalty_discount'))
+      .reduce((sum, adj) => sum + adj.amount, 0);
+    onPricingUpdate(adjustments, basePrice + netAdjustment);
   }, [clientId, quantity, basePrice, customerAgreement, seasonalAdjustments, onPricingUpdate]);
 
   const totalDiscount = pricingAdjustments

@@ -14,9 +14,11 @@ import { useToast } from "@/hooks/use-toast";
 interface QuoteVersionManagerProps {
   quotationId: string;
   costingProjectId: string;
+  currentQuoteStatus: 'draft' | 'pending' | 'approved' | 'rejected';
+  onStatusChange: (status: 'draft' | 'pending' | 'approved' | 'rejected') => void;
 }
 
-export default function QuoteVersionManager({ quotationId, costingProjectId }: QuoteVersionManagerProps) {
+export default function QuoteVersionManager({ quotationId, costingProjectId, currentQuoteStatus, onStatusChange }: QuoteVersionManagerProps) {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
   const [isNewVersionOpen, setIsNewVersionOpen] = useState(false);
@@ -58,9 +60,10 @@ export default function QuoteVersionManager({ quotationId, costingProjectId }: Q
 
   const handleApprove = (versionId: string) => {
     dispatch(approveQuotationVersion({ id: versionId, approvedBy: "Current User" }));
+    onStatusChange('approved');
     toast({
       title: "Version Approved",
-      description: "Quotation version has been approved.",
+      description: "Quotation version has been approved and main quote status updated.",
     });
   };
 
@@ -75,9 +78,10 @@ export default function QuoteVersionManager({ quotationId, costingProjectId }: Q
     }
 
     dispatch(rejectQuotationVersion({ id: versionId, rejectionReason }));
+    onStatusChange('rejected');
     toast({
       title: "Version Rejected",
-      description: "Quotation version has been rejected.",
+      description: "Quotation version has been rejected and main quote status updated.",
     });
     setRejectionReason("");
   };
@@ -98,6 +102,16 @@ export default function QuoteVersionManager({ quotationId, costingProjectId }: Q
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Quote Versions
+            <Badge 
+              className={`ml-2 ${
+                currentQuoteStatus === 'approved' ? 'bg-green-500' :
+                currentQuoteStatus === 'rejected' ? 'bg-red-500' :
+                currentQuoteStatus === 'pending' ? 'bg-yellow-500' :
+                'bg-gray-500'
+              }`}
+            >
+              {currentQuoteStatus.toUpperCase()}
+            </Badge>
           </CardTitle>
           <Dialog open={isNewVersionOpen} onOpenChange={setIsNewVersionOpen}>
             <DialogTrigger asChild>
