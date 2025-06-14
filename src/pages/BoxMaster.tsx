@@ -15,6 +15,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Search, Settings, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { 
+  addBox, 
+  updateBox, 
+  selectAllBoxes 
+} from "@/store/slices/boxMasterSlice";
+import { selectAllClients } from "@/store/slices/clientsSlice";
 
 const schema = z.object({
   boxName: z.string().min(1, "Box name is required"),
@@ -80,13 +87,7 @@ interface Box {
   createdAt: string;
 }
 
-// Mock clients data (will be replaced with actual client data later)
-const mockClients = [
-  { id: "CLI001", name: "ABC Industries Pvt Ltd" },
-  { id: "CLI002", name: "XYZ Corp" },
-  { id: "CLI003", name: "DEF Ltd" }
-];
-
+// Constants
 const manufacturingJointOptions = ["Stitching Pin", "Glue"];
 const printingTypeOptions = ["Flexo", "Offset", "Digital"];
 const colorOptions = ["1", "2", "3", "4", "5", "6"];
@@ -94,71 +95,44 @@ const colorOptions = ["1", "2", "3", "4", "5", "6"];
 export default function BoxMaster() {
   const { boxId } = useParams<{ boxId: string }>();
   const { toast } = useToast();
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   
-  // Mock boxes data (in real app, this would come from state management)
-  const [boxes, setBoxes] = useState<Box[]>([
-    {
-      id: "BOX001",
-      boxName: "Monitor Packaging Box",
-      itemCode: "MPB-001",
-      clientId: "CLI001",
-      clientName: "ABC Industries Pvt Ltd",
-      length: "520",
-      width: "380",
-      height: "400",
-      ply: "5 Ply",
-      boxType: "RSC",
-      fluteType: "BC",
-      mfgJoint: "Stitching Pin",
-      numberOfPins: 8,
-      printing: true,
-      numberOfColors: "2",
-      printingType: "Flexo",
-      colorCode: ["Black", "Red"],
-      contentWeight: 15,
-      stackHeight: 6,
-      safetyFactor: 4,
-      paperSpecs: [
-        { gsm: "150", bf: "16" },
-        { gsm: "120", bf: "14" },
-        { gsm: "150", bf: "16" },
-        { gsm: "120", bf: "14" },
-        { gsm: "150", bf: "16" }
-      ],
-      totalBoxWeight: 485.2,
-      compressionStrength: 300,
-      createdAt: "2024-06-15"
-    }
-  ]);
+  // Get data from Redux store
+  const boxes = useAppSelector((state: any) => state.boxMaster.boxes);
+  const clients = useAppSelector((state: any) => state.clients.clients);
 
-  const existingBox = boxId ? boxes.find(box => box.id === boxId) : null;
+  const existingBox = boxId ? boxes.find((box: any) => box.id === boxId) : null;
 
   const getDefaultValues = (): FormValues => {
     if (existingBox) {
       return {
-        boxName: existingBox.boxName,
-        itemCode: existingBox.itemCode,
-        clientId: existingBox.clientId,
-        length: existingBox.length,
-        width: existingBox.width,
-        height: existingBox.height,
-        ply: existingBox.ply,
-        boxType: existingBox.boxType,
-        fluteType: existingBox.fluteType,
-        mfgJoint: existingBox.mfgJoint,
-        numberOfPins: existingBox.numberOfPins,
-        printing: existingBox.printing,
-        numberOfColors: existingBox.numberOfColors,
-        printingType: existingBox.printingType,
-        colorCode: existingBox.colorCode || [""],
-        contentWeight: existingBox.contentWeight,
-        stackHeight: existingBox.stackHeight,
-        safetyFactor: existingBox.safetyFactor,
-        paperSpecs: existingBox.paperSpecs
+        boxName: existingBox.name || "",
+        itemCode: existingBox.description || "",
+        clientId: existingBox.clientId || "",
+        length: existingBox.dimensions?.length?.toString() || "0",
+        width: existingBox.dimensions?.width?.toString() || "0", 
+        height: existingBox.dimensions?.height?.toString() || "0",
+        ply: "3 Ply",
+        boxType: existingBox.category || "RSC",
+        fluteType: "A",
+        mfgJoint: "Stitching Pin",
+        numberOfPins: 0,
+        printing: false,
+        numberOfColors: "1",
+        printingType: "Flexo",
+        colorCode: [""],
+        contentWeight: 20,
+        stackHeight: 8,
+        safetyFactor: 5,
+        paperSpecs: [
+          { gsm: "0", bf: "0" },
+          { gsm: "0", bf: "0" },
+          { gsm: "0", bf: "0" }
+        ]
       };
     }
     return {
@@ -372,45 +346,31 @@ export default function BoxMaster() {
   };
 
   const onSubmit = (data: FormValues) => {
-    const selectedClient = mockClients.find(client => client.id === data.clientId);
-    const box: Box = {
+    const selectedClient = clients.find(client => client.id === data.clientId);
+    const box: any = {
       id: boxId || uuidv4(),
-      boxName: data.boxName,
-      itemCode: data.itemCode,
+      name: data.boxName,
       clientId: data.clientId,
       clientName: selectedClient ? selectedClient.name : '',
-      length: data.length,
-      width: data.width,
-      height: data.height,
-      ply: data.ply,
-      boxType: data.boxType,
-      fluteType: data.fluteType,
-      mfgJoint: data.mfgJoint,
-      numberOfPins: data.numberOfPins,
-      printing: data.printing,
-      numberOfColors: data.numberOfColors,
-      printingType: data.printingType,
-      colorCode: data.colorCode,
-      contentWeight: data.contentWeight,
-      stackHeight: data.stackHeight,
-      safetyFactor: data.safetyFactor,
-      paperSpecs: getVisiblePaperSpecs().map(spec => ({
-        gsm: spec.gsm.toString(),
-        bf: spec.bf.toString()
-      })),
-      totalBoxWeight,
-      compressionStrength,
-      createdAt: new Date().toISOString().split('T')[0]
+      dimensions: {
+        length: parseInt(data.length),
+        width: parseInt(data.width),
+        height: parseInt(data.height)
+      },
+      materials: [], // Will be populated based on paper specs
+      estimatedCost: totalBoxWeight * 2.5, // Simple calculation
+      category: data.boxType,
+      description: `${data.ply} ${data.boxType} box for ${selectedClient?.name || 'client'}`
     };
 
     if (boxId) {
-      setBoxes(boxes.map(b => b.id === boxId ? box : b));
+      dispatch(updateBox({ id: boxId, updates: box }));
       toast({
         title: "Box Updated",
         description: "Box specifications have been successfully updated.",
       });
     } else {
-      setBoxes([...boxes, box]);
+      dispatch(addBox(box));
       toast({
         title: "Box Added",
         description: "New box has been successfully added to the system.",
@@ -421,10 +381,10 @@ export default function BoxMaster() {
     console.log(JSON.stringify(box, null, 2));
   };
 
-  const filteredBoxes = boxes.filter(box => {
-    const matchesSearch = box.boxName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         box.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         box.itemCode.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredBoxes = boxes.filter((box: any) => {
+    const matchesSearch = box.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         box.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         box.category?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClient = clientFilter === "all" || box.clientId === clientFilter;
     return matchesSearch && matchesClient;
   });
@@ -480,7 +440,7 @@ export default function BoxMaster() {
                           <SelectValue placeholder="Select Client" />
                         </SelectTrigger>
                         <SelectContent>
-                          {mockClients.map((client) => (
+                          {clients.map((client: any) => (
                             <SelectItem key={client.id} value={client.id}>
                               {client.name}
                             </SelectItem>
@@ -1081,7 +1041,7 @@ export default function BoxMaster() {
           </SelectTrigger>
           <SelectContent className="bg-background border z-50">
             <SelectItem value="all">All Clients</SelectItem>
-            {mockClients.map((client) => (
+            {clients.map((client: any) => (
               <SelectItem key={client.id} value={client.id}>
                 {client.name}
               </SelectItem>
@@ -1110,56 +1070,41 @@ export default function BoxMaster() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredBoxes.map((box) => (
+          {filteredBoxes.map((box: any) => (
             <Card key={box.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg">{box.boxName}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{box.itemCode}</p>
+                    <CardTitle className="text-lg">{box.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground">{box.description}</p>
                   </div>
-                  <Badge variant="outline">{box.ply}</Badge>
+                  <Badge variant="outline">{box.category}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
                   <p className="text-sm font-medium">Client</p>
-                  <p className="text-sm text-muted-foreground">{box.clientName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {clients.find((c: any) => c.id === box.clientId)?.name || "Unknown Client"}
+                  </p>
                 </div>
                 
                 <div>
                   <p className="text-sm font-medium">Dimensions (L×W×H)</p>
-                  <p className="text-sm text-muted-foreground">{box.length} × {box.width} × {box.height} mm</p>
+                  <p className="text-sm text-muted-foreground">
+                    {box.dimensions?.length} × {box.dimensions?.width} × {box.dimensions?.height} mm
+                  </p>
                 </div>
                 
                 <div>
-                  <p className="text-sm font-medium">Box Type & Flute</p>
-                  <p className="text-sm text-muted-foreground">{box.boxType} • {box.fluteType}</p>
+                  <p className="text-sm font-medium">Category</p>
+                  <p className="text-sm text-muted-foreground">{box.category}</p>
                 </div>
 
                 <div>
-                  <p className="text-sm font-medium">Manufacturing</p>
-                  <p className="text-sm text-muted-foreground">
-                    {box.mfgJoint}
-                    {box.numberOfPins && ` (${box.numberOfPins} pins)`}
-                  </p>
+                  <p className="text-sm font-medium">Estimated Cost</p>
+                  <p className="text-sm text-muted-foreground">₹{box.estimatedCost?.toFixed(2) || "0.00"}</p>
                 </div>
-
-                {box.printing && (
-                  <div>
-                    <p className="text-sm font-medium">Printing</p>
-                    <p className="text-sm text-muted-foreground">
-                      {box.printingType} • {box.numberOfColors} colors
-                    </p>
-                  </div>
-                )}
-
-                {box.totalBoxWeight && (
-                  <div>
-                    <p className="text-sm font-medium">Box Weight</p>
-                    <p className="text-sm text-muted-foreground">{box.totalBoxWeight.toFixed(2)} gm</p>
-                  </div>
-                )}
                 
                 <div className="flex justify-end">
                   <Button variant="outline" size="sm" onClick={() => navigate(`/boxes/${box.id}`)}>
