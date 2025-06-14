@@ -68,6 +68,9 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { 
   addPurchaseOrder, 
   updatePurchaseOrder, 
+  submitPurchaseOrder,
+  sendPurchaseOrder,
+  acknowledgePurchaseOrder,
   approvePurchaseOrder,
   rejectPurchaseOrder,
   deliverPurchaseOrder
@@ -244,6 +247,14 @@ export default function PurchaseOrders() {
     });
   };
 
+  const handleSubmitPO = (po: any) => {
+    dispatch(submitPurchaseOrder(po.id));
+    toast({
+      title: "PO Submitted",
+      description: `Purchase Order ${po.id} has been submitted for approval.`,
+    });
+  };
+
   const handleApprovePO = (po: any) => {
     dispatch(approvePurchaseOrder({ id: po.id, approvedBy: "Current User" }));
     toast({
@@ -257,6 +268,22 @@ export default function PurchaseOrders() {
     toast({
       title: "PO Rejected",
       description: `Purchase Order ${po.id} has been rejected.`,
+    });
+  };
+
+  const handleSendPO = (po: any) => {
+    dispatch(sendPurchaseOrder(po.id));
+    toast({
+      title: "PO Sent",
+      description: `Purchase Order ${po.id} has been sent to supplier.`,
+    });
+  };
+
+  const handleAcknowledgePO = (po: any) => {
+    dispatch(acknowledgePurchaseOrder(po.id));
+    toast({
+      title: "PO Acknowledged",
+      description: `Purchase Order ${po.id} has been acknowledged by supplier.`,
     });
   };
 
@@ -285,6 +312,105 @@ export default function PurchaseOrders() {
       title: "PO Delivered",
       description: `Purchase Order ${po.id} marked as delivered. Stock has been updated.`,
     });
+  };
+
+  const getActionButtons = (po: any) => {
+    const buttons = [];
+    
+    switch (po.status) {
+      case 'draft':
+        buttons.push(
+          <Button
+            key="submit"
+            size="sm"
+            onClick={() => handleSubmitPO(po)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Send className="h-3 w-3 mr-1" />
+            Submit
+          </Button>
+        );
+        break;
+      
+      case 'pending':
+        buttons.push(
+          <Button
+            key="approve"
+            size="sm"
+            onClick={() => handleApprovePO(po)}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Check className="h-3 w-3 mr-1" />
+            Approve
+          </Button>,
+          <Button
+            key="reject"
+            size="sm"
+            variant="destructive"
+            onClick={() => handleRejectPO(po)}
+          >
+            <XCircle className="h-3 w-3 mr-1" />
+            Reject
+          </Button>
+        );
+        break;
+      
+      case 'approved':
+        buttons.push(
+          <Button
+            key="send"
+            size="sm"
+            onClick={() => handleSendPO(po)}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            <Send className="h-3 w-3 mr-1" />
+            Send to Supplier
+          </Button>
+        );
+        break;
+      
+      case 'sent':
+        buttons.push(
+          <Button
+            key="acknowledge"
+            size="sm"
+            onClick={() => handleAcknowledgePO(po)}
+            className="bg-cyan-600 hover:bg-cyan-700"
+          >
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Mark Acknowledged
+          </Button>
+        );
+        break;
+      
+      case 'acknowledged':
+        buttons.push(
+          <Button
+            key="deliver"
+            size="sm"
+            onClick={() => handleMarkDelivered(po)}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Truck className="h-3 w-3 mr-1" />
+            Mark Delivered
+          </Button>
+        );
+        break;
+    }
+
+    buttons.push(
+      <Button
+        key="view"
+        size="sm"
+        variant="outline"
+        onClick={() => handleViewPO(po)}
+      >
+        <Eye className="h-3 w-3 mr-1" />
+        View
+      </Button>
+    );
+
+    return buttons;
   };
 
   const handleViewPO = (po: any) => {
@@ -666,24 +792,11 @@ export default function PurchaseOrders() {
                       </TableCell>
                       <TableCell>₹{po.totalAmount.toLocaleString()}</TableCell>
                       <TableCell>{po.items.length} items</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => handleViewPO(po)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {po.status === "approved" && (
-                            <Button variant="ghost" size="sm" onClick={() => handleMarkDelivered(po)}>
-                              <Truck className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="sm">
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                       <TableCell>
+                         <div className="flex gap-1 flex-wrap">
+                           {getActionButtons(po)}
+                         </div>
+                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

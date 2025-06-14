@@ -61,6 +61,39 @@ const purchaseOrdersSlice = createSlice({
       }
     },
     
+    submitPurchaseOrder: (state, action: PayloadAction<string>) => {
+      const index = state.orders.findIndex(po => po.id === action.payload);
+      if (index !== -1) {
+        state.orders[index] = {
+          ...state.orders[index],
+          status: 'pending',
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    },
+    
+    sendPurchaseOrder: (state, action: PayloadAction<string>) => {
+      const index = state.orders.findIndex(po => po.id === action.payload);
+      if (index !== -1) {
+        state.orders[index] = {
+          ...state.orders[index],
+          status: 'sent',
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    },
+    
+    acknowledgePurchaseOrder: (state, action: PayloadAction<string>) => {
+      const index = state.orders.findIndex(po => po.id === action.payload);
+      if (index !== -1) {
+        state.orders[index] = {
+          ...state.orders[index],
+          status: 'acknowledged',
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    },
+    
     deliverPurchaseOrder: (state, action: PayloadAction<string>) => {
       const index = state.orders.findIndex(po => po.id === action.payload);
       if (index !== -1) {
@@ -93,6 +126,9 @@ const purchaseOrdersSlice = createSlice({
 export const { 
   addPurchaseOrder, 
   updatePurchaseOrder, 
+  submitPurchaseOrder,
+  sendPurchaseOrder,
+  acknowledgePurchaseOrder,
   approvePurchaseOrder,
   rejectPurchaseOrder,
   deliverPurchaseOrder,
