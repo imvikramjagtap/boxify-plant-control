@@ -8,7 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Package, AlertTriangle, TrendingDown, Eye, Settings } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, Search, Package, AlertTriangle, TrendingDown, Eye, Settings, Check, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const productTypes = [
@@ -20,6 +22,40 @@ const productTypes = [
   "Lamination Material",
   "Die Cutting Tools",
   "Quality Control Equipment"
+];
+
+// Mock suppliers data - in real app, this would come from the suppliers page
+const mockSuppliers = [
+  {
+    id: "SUP001",
+    name: "Paper Mills Pvt Ltd",
+    productType: "Corrugated Sheets"
+  },
+  {
+    id: "SUP002", 
+    name: "Adhesive Solutions",
+    productType: "Adhesive & Glue"
+  },
+  {
+    id: "SUP003",
+    name: "Wire Industries Ltd",
+    productType: "Stitching Wire"
+  },
+  {
+    id: "SUP004",
+    name: "Color Print Inks",
+    productType: "Printing Ink"
+  },
+  {
+    id: "SUP005",
+    name: "Pack Materials Co",
+    productType: "Packaging Material"
+  },
+  {
+    id: "SUP006",
+    name: "Lamination Experts",
+    productType: "Lamination Material"
+  }
 ];
 
 const unitsByProductType = {
@@ -78,6 +114,8 @@ export default function RawMaterials() {
   const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null);
   const [activeTab, setActiveTab] = useState("materials");
+  const [supplierSearchOpen, setSupplierSearchOpen] = useState(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const [materials, setMaterials] = useState<RawMaterial[]>([
     {
@@ -180,6 +218,13 @@ export default function RawMaterials() {
 
   const lowStockMaterials = materials.filter(m => m.currentStock <= m.minimumStock);
   const totalInventoryValue = materials.reduce((sum, m) => sum + (m.currentStock * m.unitPrice), 0);
+
+  // Filter suppliers based on selected product type
+  const filteredSuppliers = mockSuppliers.filter(supplier => 
+    !formData.productType || supplier.productType === formData.productType
+  );
+
+  const selectedSupplier = mockSuppliers.find(s => s.id === formData.supplierId);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -403,13 +448,57 @@ export default function RawMaterials() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="supplierName">Supplier Name</Label>
-                  <Input
-                    id="supplierName"
-                    value={formData.supplierName}
-                    onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
-                    placeholder="Enter supplier name"
-                  />
+                  <Label htmlFor="supplier">Supplier</Label>
+                  <Popover open={supplierSearchOpen} onOpenChange={setSupplierSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={supplierSearchOpen}
+                        className="w-full justify-between"
+                        disabled={!formData.productType}
+                      >
+                        {selectedSupplier ? selectedSupplier.name : "Select supplier..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search suppliers..." className="h-9" />
+                        <CommandEmpty>No supplier found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandList>
+                            {filteredSuppliers.map((supplier) => (
+                              <CommandItem
+                                key={supplier.id}
+                                value={supplier.name}
+                                onSelect={() => {
+                                  setFormData({ 
+                                    ...formData, 
+                                    supplierId: supplier.id, 
+                                    supplierName: supplier.name 
+                                  });
+                                  setSupplierSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    formData.supplierId === supplier.id ? "opacity-100" : "opacity-0"
+                                  }`}
+                                />
+                                {supplier.name}
+                              </CommandItem>
+                            ))}
+                          </CommandList>
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {!formData.productType && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Please select a product type first
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -613,7 +702,8 @@ export default function RawMaterials() {
                         variant="outline" 
                         size="sm"
                         onClick={() => {
-                          // Navigate to material details or edit
+                          setSelectedMaterial(material);
+                          setIsDetailDialogOpen(true);
                         }}
                       >
                         <Eye className="h-3 w-3 mr-1" />
@@ -763,6 +853,108 @@ export default function RawMaterials() {
               Update Stock
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Material Details Dialog */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Material Details - {selectedMaterial?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedMaterial && (
+            <div className="grid gap-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Material ID</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMaterial.id}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Status</Label>
+                  <Badge className={getStatusColor(selectedMaterial.status)}>
+                    {selectedMaterial.status}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Product Type</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMaterial.productType}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Unit</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMaterial.unit}</p>
+                </div>
+              </div>
+
+              {Object.keys(selectedMaterial.specifications).length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Specifications</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(selectedMaterial.specifications).map(([key, value]) => (
+                      value && (
+                        <div key={key} className="flex justify-between">
+                          <span className="text-sm text-muted-foreground capitalize">{key}:</span>
+                          <span className="text-sm">{value}</span>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Current Stock</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedMaterial.currentStock} {selectedMaterial.unit}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Minimum Stock</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedMaterial.minimumStock} {selectedMaterial.unit}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Unit Price</Label>
+                  <p className="text-sm text-muted-foreground">₹{selectedMaterial.unitPrice}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Total Value</Label>
+                  <p className="text-sm text-muted-foreground">
+                    ₹{(selectedMaterial.currentStock * selectedMaterial.unitPrice).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Supplier</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMaterial.supplierName}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Batch Number</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMaterial.batchNumber}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Manufacturing Date</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMaterial.manufacturingDate}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Received Date</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMaterial.receivedDate}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
