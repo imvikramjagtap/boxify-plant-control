@@ -11,7 +11,8 @@ import {
   FileText, 
   BarChart3,
   Menu,
-  ShoppingCart
+  ShoppingCart,
+  Calculator
 } from "lucide-react";
 
 const navigation = [
@@ -19,6 +20,7 @@ const navigation = [
   { name: "Suppliers", href: "/suppliers", icon: Users },
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Box Master", href: "/boxes", icon: Package },
+  { name: "Costing", href: "/costing", icon: Calculator },
   { name: "Job Cards", href: "/job-cards", icon: FileText },
   { name: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart },
   { name: "Production", href: "/production", icon: Factory },
