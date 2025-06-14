@@ -82,6 +82,24 @@ export interface PriceHistory {
   poId?: string;
 }
 
+export interface MaterialSpecifications {
+  gsm?: number;
+  bf?: number; // Burst Factor
+  ect?: number; // Edge Crush Test
+  fluteType?: string;
+  grade?: string;
+  thickness?: number;
+  moistureContent?: number;
+  qualityTolerance?: {
+    gsm?: { min: number; max: number };
+    bf?: { min: number; max: number };
+    ect?: { min: number; max: number };
+    thickness?: { min: number; max: number };
+    moistureContent?: { max: number };
+  };
+  inspectionCriteria?: string[];
+}
+
 export interface POItem {
   id: string;
   materialId: string;
@@ -90,6 +108,43 @@ export interface POItem {
   rate: number;
   total: number;
   unit: string;
+  specifications?: MaterialSpecifications;
+  hsnCode?: string;
+  gstRate?: number;
+  gstAmount?: number;
+  deliveryStatus?: "pending" | "partial" | "completed";
+  deliveredQuantity?: number;
+  qualityAccepted?: boolean;
+  grnNumber?: string;
+  inspectionNotes?: string;
+}
+
+export interface TaxCalculation {
+  subtotal: number;
+  gstAmount: number;
+  tdsAmount?: number;
+  tdsRate?: number;
+  totalAfterTax: number;
+}
+
+export interface PaymentTerms {
+  paymentMethod: "cash" | "cheque" | "neft" | "rtgs" | "online";
+  creditDays: number;
+  advancePercentage?: number;
+  penaltyClause?: string;
+}
+
+export interface DeliveryDetails {
+  deliveryAddress: string;
+  contactPerson: string;
+  contactPhone: string;
+  specialInstructions?: string;
+  partialDeliveryAllowed: boolean;
+  deliverySchedule?: Array<{
+    expectedDate: Date;
+    quantity: number;
+    items: string[];
+  }>;
 }
 
 export interface PurchaseOrder {
@@ -105,6 +160,20 @@ export interface PurchaseOrder {
   approvedBy: string | null;
   terms: string;
   notes: string;
+  taxCalculation: TaxCalculation;
+  paymentTerms: PaymentTerms;
+  deliveryDetails: DeliveryDetails;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    url: string;
+    type: string;
+  }>;
+  emailSent?: boolean;
+  emailSentAt?: string;
+  printedAt?: string;
+  revision?: number;
+  originalPOId?: string;
   createdAt: string;
   updatedAt: string;
 }

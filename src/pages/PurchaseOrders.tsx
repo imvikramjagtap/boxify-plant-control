@@ -130,7 +130,15 @@ export default function PurchaseOrders() {
     expectedDelivery: "",
     terms: "",
     notes: "",
-    items: [{ materialId: "", quantity: 0, rate: 0, total: 0, unit: "" }]
+    items: [{ materialId: "", quantity: 0, rate: 0, total: 0, unit: "" }],
+    paymentMethod: "neft" as const,
+    creditDays: 30,
+    advancePercentage: 0,
+    deliveryAddress: "",
+    contactPerson: "",
+    contactPhone: "",
+    partialDeliveryAllowed: true,
+    tdsRate: 2
   });
 
   const filteredPOs = purchaseOrders.filter(po => {
@@ -187,6 +195,21 @@ export default function PurchaseOrders() {
     return newPO.items.reduce((sum, item) => sum + item.total, 0);
   };
 
+  const calculateTaxes = () => {
+    const subtotal = getTotalAmount();
+    const gstAmount = subtotal * 0.18; // 18% GST
+    const tdsAmount = subtotal * (newPO.tdsRate / 100);
+    const totalAfterTax = subtotal + gstAmount - tdsAmount;
+    
+    return {
+      subtotal,
+      gstAmount,
+      tdsAmount,
+      tdsRate: newPO.tdsRate,
+      totalAfterTax
+    };
+  };
+
   const handleCreatePO = () => {
     if (!selectedSupplier || newPO.items.some(item => !item.materialId || item.quantity <= 0)) {
       toast({
@@ -199,6 +222,9 @@ export default function PurchaseOrders() {
 
     const poItems: POItem[] = newPO.items.map((item, index) => {
       const material = rawMaterials.find(m => m.id === item.materialId);
+      const gstRate = 18; // Default 18% GST
+      const gstAmount = item.total * (gstRate / 100);
+      
       return {
         id: `POI${String(Date.now() + index)}`,
         materialId: item.materialId,
@@ -206,22 +232,55 @@ export default function PurchaseOrders() {
         quantity: item.quantity,
         rate: item.rate,
         total: item.total,
-        unit: item.unit
+        unit: item.unit,
+        gstRate,
+        gstAmount,
+        deliveryStatus: "pending",
+        deliveredQuantity: 0,
+        qualityAccepted: false,
+        specifications: material?.specifications ? {
+          gsm: parseFloat(material.specifications.gsm) || undefined,
+          bf: parseFloat(material.specifications.bf) || undefined,
+          ect: parseFloat(material.specifications.ect) || undefined,
+          fluteType: material.specifications.fluteType,
+          grade: material.specifications.grade,
+          thickness: parseFloat(material.specifications.thickness) || undefined,
+          moistureContent: parseFloat(material.specifications.moistureContent) || undefined,
+          inspectionCriteria: [
+            "Visual inspection for defects",
+            "Dimensional accuracy check", 
+            "Quality parameter testing"
+          ]
+        } : undefined
       };
     });
+
+    const taxCalculation = calculateTaxes();
 
     const newPurchaseOrder: Omit<PurchaseOrder, "id"> = {
       supplier: selectedSupplier,
       date: new Date(),
       expectedDelivery: new Date(newPO.expectedDelivery),
       status: "draft",
-      totalAmount: getTotalAmount(),
+      totalAmount: taxCalculation.totalAfterTax,
       currency: "INR",
       items: poItems,
       requestedBy: "Current User", // In real app, get from auth context
       approvedBy: null,
       terms: newPO.terms,
       notes: newPO.notes,
+      taxCalculation,
+      paymentTerms: {
+        paymentMethod: newPO.paymentMethod,
+        creditDays: newPO.creditDays,
+        advancePercentage: newPO.advancePercentage
+      },
+      deliveryDetails: {
+        deliveryAddress: newPO.deliveryAddress || selectedSupplier.address,
+        contactPerson: newPO.contactPerson || selectedSupplier.contactPersons[0]?.name || "",
+        contactPhone: newPO.contactPhone || selectedSupplier.contactPersons[0]?.phone || selectedSupplier.phone,
+        partialDeliveryAllowed: newPO.partialDeliveryAllowed
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -243,7 +302,15 @@ export default function PurchaseOrders() {
       expectedDelivery: "",
       terms: "",
       notes: "",
-      items: [{ materialId: "", quantity: 0, rate: 0, total: 0, unit: "" }]
+      items: [{ materialId: "", quantity: 0, rate: 0, total: 0, unit: "" }],
+      paymentMethod: "neft" as const,
+      creditDays: 30,
+      advancePercentage: 0,
+      deliveryAddress: "",
+      contactPerson: "",
+      contactPhone: "",
+      partialDeliveryAllowed: true,
+      tdsRate: 2
     });
   };
 
@@ -617,6 +684,118 @@ export default function PurchaseOrders() {
 
                   <Card>
                     <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Financial & Payment Terms
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="paymentMethod">Payment Method</Label>
+                          <Select
+                            value={newPO.paymentMethod}
+                            onValueChange={(value: any) => setNewPO(prev => ({ ...prev, paymentMethod: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cash">Cash</SelectItem>
+                              <SelectItem value="cheque">Cheque</SelectItem>
+                              <SelectItem value="neft">NEFT</SelectItem>
+                              <SelectItem value="rtgs">RTGS</SelectItem>
+                              <SelectItem value="online">Online Transfer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="creditDays">Credit Days</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={newPO.creditDays}
+                            onChange={(e) => setNewPO(prev => ({ ...prev, creditDays: parseInt(e.target.value) || 0 }))}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="advancePercentage">Advance Payment (%)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={newPO.advancePercentage}
+                            onChange={(e) => setNewPO(prev => ({ ...prev, advancePercentage: parseFloat(e.target.value) || 0 }))}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="tdsRate">TDS Rate (%)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="30"
+                            step="0.1"
+                            value={newPO.tdsRate}
+                            onChange={(e) => setNewPO(prev => ({ ...prev, tdsRate: parseFloat(e.target.value) || 0 }))}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Truck className="h-4 w-4" />
+                        Delivery Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <Label htmlFor="deliveryAddress">Delivery Address</Label>
+                        <Textarea
+                          id="deliveryAddress"
+                          placeholder="Delivery address (default: supplier address)"
+                          value={newPO.deliveryAddress}
+                          onChange={(e) => setNewPO(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                          rows={2}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="contactPerson">Contact Person</Label>
+                          <Input
+                            id="contactPerson"
+                            placeholder="Contact person name"
+                            value={newPO.contactPerson}
+                            onChange={(e) => setNewPO(prev => ({ ...prev, contactPerson: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="contactPhone">Contact Phone</Label>
+                          <Input
+                            id="contactPhone"
+                            placeholder="Contact phone number"
+                            value={newPO.contactPhone}
+                            onChange={(e) => setNewPO(prev => ({ ...prev, contactPhone: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="partialDelivery"
+                          checked={newPO.partialDeliveryAllowed}
+                          onChange={(e) => setNewPO(prev => ({ ...prev, partialDeliveryAllowed: e.target.checked }))}
+                          className="rounded"
+                        />
+                        <Label htmlFor="partialDelivery">Allow Partial Delivery</Label>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
                       <CardTitle className="text-lg">Additional Information</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -663,10 +842,18 @@ export default function PurchaseOrders() {
                           <span>Subtotal:</span>
                           <span>₹{getTotalAmount().toFixed(2)}</span>
                         </div>
+                        <div className="flex justify-between text-sm">
+                          <span>GST (18%):</span>
+                          <span>₹{calculateTaxes().gstAmount.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-red-600">
+                          <span>TDS ({newPO.tdsRate}%):</span>
+                          <span>-₹{calculateTaxes().tdsAmount.toFixed(2)}</span>
+                        </div>
                         <Separator />
                         <div className="flex justify-between font-medium">
                           <span>Total Amount:</span>
-                          <span>₹{getTotalAmount().toFixed(2)}</span>
+                          <span>₹{calculateTaxes().totalAfterTax.toFixed(2)}</span>
                         </div>
                       </div>
                     </CardContent>
@@ -1063,37 +1250,114 @@ export default function PurchaseOrders() {
                 </CardHeader>
                 <CardContent>
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Material</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Unit</TableHead>
-                        <TableHead>Rate (₹)</TableHead>
-                        <TableHead>Total (₹)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedPO.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>{item.materialName}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{item.unit}</TableCell>
-                          <TableCell>₹{item.rate.toFixed(2)}</TableCell>
-                          <TableCell>₹{item.total.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
+                     <TableHeader>
+                       <TableRow>
+                         <TableHead>Material</TableHead>
+                         <TableHead>Specifications</TableHead>
+                         <TableHead>Quantity</TableHead>
+                         <TableHead>Unit</TableHead>
+                         <TableHead>Rate (₹)</TableHead>
+                         <TableHead>GST (₹)</TableHead>
+                         <TableHead>Total (₹)</TableHead>
+                       </TableRow>
+                     </TableHeader>
+                     <TableBody>
+                       {selectedPO.items.map((item) => (
+                         <TableRow key={item.id}>
+                           <TableCell>
+                             <div>
+                               <div className="font-medium">{item.materialName}</div>
+                               {item.specifications && (
+                                 <div className="text-xs text-muted-foreground mt-1">
+                                   {item.specifications.gsm && `GSM: ${item.specifications.gsm}`}
+                                   {item.specifications.bf && ` | BF: ${item.specifications.bf}`}
+                                   {item.specifications.ect && ` | ECT: ${item.specifications.ect}`}
+                                   {item.specifications.fluteType && ` | Flute: ${item.specifications.fluteType}`}
+                                 </div>
+                               )}
+                             </div>
+                           </TableCell>
+                           <TableCell>
+                             {item.specifications && (
+                               <div className="text-xs space-y-1">
+                                 {item.specifications.grade && <div>Grade: {item.specifications.grade}</div>}
+                                 {item.specifications.thickness && <div>Thickness: {item.specifications.thickness}mm</div>}
+                                 {item.specifications.moistureContent && <div>Moisture: ≤{item.specifications.moistureContent}%</div>}
+                               </div>
+                             )}
+                           </TableCell>
+                           <TableCell>{item.quantity}</TableCell>
+                           <TableCell>{item.unit}</TableCell>
+                           <TableCell>₹{item.rate.toFixed(2)}</TableCell>
+                           <TableCell>₹{(item.gstAmount || 0).toFixed(2)}</TableCell>
+                           <TableCell>₹{item.total.toFixed(2)}</TableCell>
+                         </TableRow>
+                       ))}
+                     </TableBody>
                   </Table>
-                  <Separator className="my-4" />
-                  <div className="flex justify-end">
-                    <div className="text-right">
-                      <div className="text-lg font-bold">
-                        Total Amount: ₹{selectedPO.totalAmount.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
+                   <Separator className="my-4" />
+                   <div className="flex justify-end">
+                     <div className="text-right space-y-1">
+                       {selectedPO.taxCalculation && (
+                         <>
+                           <div className="text-sm">
+                             Subtotal: ₹{selectedPO.taxCalculation.subtotal.toFixed(2)}
+                           </div>
+                           <div className="text-sm">
+                             GST: ₹{selectedPO.taxCalculation.gstAmount.toFixed(2)}
+                           </div>
+                           {selectedPO.taxCalculation.tdsAmount > 0 && (
+                             <div className="text-sm text-red-600">
+                               TDS ({selectedPO.taxCalculation.tdsRate}%): -₹{selectedPO.taxCalculation.tdsAmount.toFixed(2)}
+                             </div>
+                           )}
+                         </>
+                       )}
+                       <div className="text-lg font-bold">
+                         Total Amount: ₹{selectedPO.totalAmount.toFixed(2)}
+                       </div>
+                     </div>
+                   </div>
                 </CardContent>
               </Card>
+
+              {/* Payment Terms and Delivery Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {selectedPO.paymentTerms && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Payment Terms
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div><strong>Payment Method:</strong> {selectedPO.paymentTerms.paymentMethod?.toUpperCase()}</div>
+                      <div><strong>Credit Days:</strong> {selectedPO.paymentTerms.creditDays} days</div>
+                      {selectedPO.paymentTerms.advancePercentage > 0 && (
+                        <div><strong>Advance:</strong> {selectedPO.paymentTerms.advancePercentage}%</div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {selectedPO.deliveryDetails && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Truck className="h-4 w-4" />
+                        Delivery Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div><strong>Address:</strong> {selectedPO.deliveryDetails.deliveryAddress}</div>
+                      <div><strong>Contact Person:</strong> {selectedPO.deliveryDetails.contactPerson}</div>
+                      <div><strong>Contact Phone:</strong> {selectedPO.deliveryDetails.contactPhone}</div>
+                      <div><strong>Partial Delivery:</strong> {selectedPO.deliveryDetails.partialDeliveryAllowed ? 'Allowed' : 'Not Allowed'}</div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
 
               {/* Terms and Notes */}
               {(selectedPO.terms || selectedPO.notes) && (
