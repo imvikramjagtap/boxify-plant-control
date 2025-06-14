@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   Table,
   TableBody,
@@ -57,62 +59,21 @@ import {
   Package,
   Calculator,
   Trash2,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  supplierService, 
+  materialService, 
+  purchaseOrderService, 
+  type Supplier, 
+  type RawMaterial, 
+  type PurchaseOrder, 
+  type POItem 
+} from "@/lib/dataService";
 
-// Mock data for POs
-const mockPOs = [
-  {
-    id: "PO-2024-001",
-    supplier: "ABC Paper Mills",
-    date: new Date("2024-01-15"),
-    expectedDelivery: new Date("2024-01-25"),
-    status: "approved",
-    totalAmount: 25000.00,
-    currency: "INR",
-    items: 3,
-    requestedBy: "John Doe",
-    approvedBy: "Jane Smith",
-  },
-  {
-    id: "PO-2024-002",
-    supplier: "XYZ Packaging Co",
-    date: new Date("2024-01-10"),
-    expectedDelivery: new Date("2024-01-20"),
-    status: "pending",
-    totalAmount: 18500.00,
-    currency: "INR",
-    items: 2,
-    requestedBy: "Mike Johnson",
-    approvedBy: null,
-  },
-  {
-    id: "PO-2024-003",
-    supplier: "Quality Materials Ltd",
-    date: new Date("2024-01-08"),
-    expectedDelivery: new Date("2024-01-18"),
-    status: "delivered",
-    totalAmount: 32000.00,
-    currency: "INR",
-    items: 5,
-    requestedBy: "Sarah Wilson",
-    approvedBy: "Jane Smith",
-  },
-];
-
-// Mock suppliers data
-const mockSuppliers = [
-  { id: "1", name: "ABC Paper Mills", type: "Paper", contact: "9876543210" },
-  { id: "2", name: "XYZ Packaging Co", type: "Corrugated", contact: "9876543211" },
-  { id: "3", name: "Quality Materials Ltd", type: "Paper", contact: "9876543212" },
-];
-
-// Mock raw materials
-const mockRawMaterials = [
-  { id: "1", name: "Kraft Paper 120GSM", unit: "KG", currentStock: 500, rate: 45.00 },
-  { id: "2", name: "Corrugated Sheet 3mm", unit: "Pieces", currentStock: 200, rate: 25.00 },
-  { id: "3", name: "White Paper 80GSM", unit: "KG", currentStock: 300, rate: 55.00 },
-];
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -143,32 +104,52 @@ const getStatusIcon = (status: string) => {
 };
 
 export default function PurchaseOrders() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("list");
-  const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [supplierSearchOpen, setSupplierSearchOpen] = useState(false);
+  
+  // Data will be loaded from the shared service
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   
   // New PO form state
   const [newPO, setNewPO] = useState({
-    supplier: "",
+    supplierId: "",
     expectedDelivery: "",
     terms: "",
     notes: "",
-    items: [{ materialId: "", quantity: 0, rate: 0, total: 0 }]
+    items: [{ materialId: "", quantity: 0, rate: 0, total: 0, unit: "" }]
   });
 
-  const filteredPOs = mockPOs.filter(po => {
+  // Load data on component mount
+  useEffect(() => {
+    setSuppliers(supplierService.getAll());
+    setRawMaterials(materialService.getAll());
+    setPurchaseOrders(purchaseOrderService.getAll());
+  }, []);
+
+  const filteredPOs = purchaseOrders.filter(po => {
     const matchesSearch = po.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         po.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+                         po.supplier.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || po.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
+  const selectedSupplier = suppliers.find(s => s.id === newPO.supplierId);
+  const availableMaterials = selectedSupplier 
+    ? rawMaterials.filter(m => m.supplierId === selectedSupplier.id)
+    : [];
+
   const addNewItem = () => {
     setNewPO(prev => ({
       ...prev,
-      items: [...prev.items, { materialId: "", quantity: 0, rate: 0, total: 0 }]
+      items: [...prev.items, { materialId: "", quantity: 0, rate: 0, total: 0, unit: "" }]
     }));
   };
 
@@ -189,12 +170,13 @@ export default function PurchaseOrders() {
         updatedItems[index].total = updatedItems[index].quantity * updatedItems[index].rate;
       }
       
-      // Auto-fill rate when material is selected
+      // Auto-fill rate and unit when material is selected
       if (field === "materialId") {
-        const material = mockRawMaterials.find(m => m.id === value);
+        const material = rawMaterials.find(m => m.id === value);
         if (material) {
-          updatedItems[index].rate = material.rate;
-          updatedItems[index].total = updatedItems[index].quantity * material.rate;
+          updatedItems[index].rate = material.unitPrice;
+          updatedItems[index].unit = material.unit;
+          updatedItems[index].total = updatedItems[index].quantity * material.unitPrice;
         }
       }
       
@@ -207,16 +189,95 @@ export default function PurchaseOrders() {
   };
 
   const handleCreatePO = () => {
-    console.log("Creating PO:", newPO);
+    if (!selectedSupplier || newPO.items.some(item => !item.materialId || item.quantity <= 0)) {
+      toast({
+        title: "Validation Error",
+        description: "Please select supplier and ensure all items have valid quantities.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const poItems: POItem[] = newPO.items.map((item, index) => {
+      const material = rawMaterials.find(m => m.id === item.materialId);
+      return {
+        id: `POI${String(Date.now() + index)}`,
+        materialId: item.materialId,
+        materialName: material?.name || "",
+        quantity: item.quantity,
+        rate: item.rate,
+        total: item.total,
+        unit: item.unit
+      };
+    });
+
+    const newPurchaseOrder: Omit<PurchaseOrder, "id"> = {
+      supplier: selectedSupplier,
+      date: new Date(),
+      expectedDelivery: new Date(newPO.expectedDelivery),
+      status: "draft",
+      totalAmount: getTotalAmount(),
+      currency: "INR",
+      items: poItems,
+      requestedBy: "Current User", // In real app, get from auth context
+      approvedBy: null,
+      terms: newPO.terms,
+      notes: newPO.notes
+    };
+
+    const createdPO = purchaseOrderService.add(newPurchaseOrder);
+    setPurchaseOrders(purchaseOrderService.getAll());
+    
+    toast({
+      title: "Purchase Order Created",
+      description: `PO ${createdPO.id} has been created successfully.`,
+    });
+    
     setIsCreateDialogOpen(false);
-    // Reset form
+    resetForm();
+  };
+
+  const resetForm = () => {
     setNewPO({
-      supplier: "",
+      supplierId: "",
       expectedDelivery: "",
       terms: "",
       notes: "",
-      items: [{ materialId: "", quantity: 0, rate: 0, total: 0 }]
+      items: [{ materialId: "", quantity: 0, rate: 0, total: 0, unit: "" }]
     });
+  };
+
+  const handleApprovePO = (po: PurchaseOrder) => {
+    purchaseOrderService.approve(po.id, "Current User");
+    setPurchaseOrders(purchaseOrderService.getAll());
+    toast({
+      title: "PO Approved",
+      description: `Purchase Order ${po.id} has been approved.`,
+    });
+  };
+
+  const handleRejectPO = (po: PurchaseOrder) => {
+    purchaseOrderService.reject(po.id);
+    setPurchaseOrders(purchaseOrderService.getAll());
+    toast({
+      title: "PO Rejected",
+      description: `Purchase Order ${po.id} has been rejected.`,
+    });
+  };
+
+  const handleMarkDelivered = (po: PurchaseOrder) => {
+    purchaseOrderService.update(po.id, { status: "delivered" });
+    setPurchaseOrders(purchaseOrderService.getAll());
+    setRawMaterials(materialService.getAll()); // Refresh materials to show updated stock
+    toast({
+      title: "PO Delivered",
+      description: `Purchase Order ${po.id} marked as delivered. Stock has been updated.`,
+    });
+  };
+
+  const handleViewPO = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setIsViewDialogOpen(true);
   };
 
   return (
@@ -260,21 +321,53 @@ export default function PurchaseOrders() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="supplier">Supplier *</Label>
-                          <Select value={newPO.supplier} onValueChange={(value) => setNewPO(prev => ({ ...prev, supplier: value }))}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select supplier" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {mockSuppliers.map((supplier) => (
-                                <SelectItem key={supplier.id} value={supplier.id}>
-                                  <div className="flex items-center gap-2">
-                                    <span>{supplier.name}</span>
-                                    <Badge variant="outline" className="text-xs">{supplier.type}</Badge>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Popover open={supplierSearchOpen} onOpenChange={setSupplierSearchOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={supplierSearchOpen}
+                                className="w-full justify-between"
+                              >
+                                {selectedSupplier ? selectedSupplier.name : "Select supplier..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0">
+                              <Command>
+                                <CommandInput placeholder="Search suppliers..." className="h-9" />
+                                <CommandEmpty>No supplier found.</CommandEmpty>
+                                <CommandGroup>
+                                  <CommandList>
+                                    {suppliers.map((supplier) => (
+                                      <CommandItem
+                                        key={supplier.id}
+                                        value={supplier.name}
+                                        onSelect={() => {
+                                          setNewPO(prev => ({ 
+                                            ...prev, 
+                                            supplierId: supplier.id,
+                                            items: [{ materialId: "", quantity: 0, rate: 0, total: 0, unit: "" }]
+                                          }));
+                                          setSupplierSearchOpen(false);
+                                        }}
+                                      >
+                                        <Check
+                                          className={`mr-2 h-4 w-4 ${
+                                            newPO.supplierId === supplier.id ? "opacity-100" : "opacity-0"
+                                          }`}
+                                        />
+                                        <div className="flex flex-col">
+                                          <span>{supplier.name}</span>
+                                          <span className="text-xs text-muted-foreground">{supplier.productType}</span>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandList>
+                                </CommandGroup>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                         <div>
                           <Label htmlFor="expectedDelivery">Expected Delivery *</Label>
@@ -318,17 +411,18 @@ export default function PurchaseOrders() {
                                 <Select
                                   value={item.materialId}
                                   onValueChange={(value) => updateItem(index, "materialId", value)}
+                                  disabled={!selectedSupplier}
                                 >
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select material" />
+                                    <SelectValue placeholder={selectedSupplier ? "Select material" : "Select supplier first"} />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {mockRawMaterials.map((material) => (
+                                    {availableMaterials.map((material) => (
                                       <SelectItem key={material.id} value={material.id}>
                                         <div className="flex flex-col">
                                           <span>{material.name}</span>
                                           <span className="text-xs text-muted-foreground">
-                                            Stock: {material.currentStock} {material.unit}
+                                            Stock: {material.currentStock} {material.unit} • ₹{material.unitPrice}/{material.unit}
                                           </span>
                                         </div>
                                       </SelectItem>
@@ -364,6 +458,9 @@ export default function PurchaseOrders() {
                                   readOnly
                                   className="bg-muted"
                                 />
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Unit: {item.unit || "N/A"}
                               </div>
                             </div>
                           </div>
@@ -546,7 +643,7 @@ export default function PurchaseOrders() {
                   {filteredPOs.map((po) => (
                     <TableRow key={po.id}>
                       <TableCell className="font-medium">{po.id}</TableCell>
-                      <TableCell>{po.supplier}</TableCell>
+                      <TableCell>{po.supplier.name}</TableCell>
                       <TableCell>{format(po.date, "dd MMM yyyy")}</TableCell>
                       <TableCell>{format(po.expectedDelivery, "dd MMM yyyy")}</TableCell>
                       <TableCell>
@@ -556,15 +653,17 @@ export default function PurchaseOrders() {
                         </Badge>
                       </TableCell>
                       <TableCell>₹{po.totalAmount.toLocaleString()}</TableCell>
-                      <TableCell>{po.items} items</TableCell>
+                      <TableCell>{po.items.length} items</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleViewPO(po)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {po.status === "approved" && (
+                            <Button variant="ghost" size="sm" onClick={() => handleMarkDelivered(po)}>
+                              <Truck className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="sm">
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -642,14 +741,14 @@ export default function PurchaseOrders() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockPOs.slice(0, 5).map((po) => (
+                  {purchaseOrders.slice(0, 5).map((po) => (
                     <div key={po.id} className="flex items-center justify-between p-3 border rounded">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
                           {getStatusIcon(po.status)}
                           <div>
                             <p className="font-medium">{po.id}</p>
-                            <p className="text-sm text-muted-foreground">{po.supplier}</p>
+                            <p className="text-sm text-muted-foreground">{po.supplier.name}</p>
                           </div>
                         </div>
                       </div>
@@ -710,34 +809,34 @@ export default function PurchaseOrders() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockPOs.filter(po => po.status === "pending").map((po) => (
+                {purchaseOrders.filter(po => po.status === "pending").map((po) => (
                   <div key={po.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div>
                           <h3 className="font-medium">{po.id}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {po.supplier} • ₹{po.totalAmount.toLocaleString()} • {po.items} items
+                            {po.supplier.name} • ₹{po.totalAmount.toLocaleString()} • {po.items.length} items
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Requested by {po.requestedBy} on {format(po.date, "dd MMM yyyy")}
                           </p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4 mr-2" />
-                          Review
-                        </Button>
-                        <Button variant="destructive" size="sm">
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Reject
-                        </Button>
-                        <Button size="sm">
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve
-                        </Button>
-                      </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleViewPO(po)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Review
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleRejectPO(po)}>
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject
+                          </Button>
+                          <Button size="sm" onClick={() => handleApprovePO(po)}>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Approve
+                          </Button>
+                        </div>
                     </div>
                   </div>
                 ))}
@@ -784,6 +883,153 @@ export default function PurchaseOrders() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* PO View Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Purchase Order Details - {selectedPO?.id}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedPO && (
+            <div className="space-y-6">
+              {/* Header Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Supplier Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div><strong>Name:</strong> {selectedPO.supplier.name}</div>
+                    <div><strong>Email:</strong> {selectedPO.supplier.email}</div>
+                    <div><strong>Phone:</strong> {selectedPO.supplier.phone}</div>
+                    <div><strong>GST:</strong> {selectedPO.supplier.gstNumber}</div>
+                    <div><strong>Address:</strong> {selectedPO.supplier.address}</div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Order Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div><strong>PO Number:</strong> {selectedPO.id}</div>
+                    <div><strong>Date:</strong> {format(selectedPO.date, "dd MMM yyyy")}</div>
+                    <div><strong>Expected Delivery:</strong> {format(selectedPO.expectedDelivery, "dd MMM yyyy")}</div>
+                    <div><strong>Status:</strong> 
+                      <Badge className={`ml-2 ${getStatusColor(selectedPO.status)} text-white`}>
+                        {getStatusIcon(selectedPO.status)}
+                        <span className="ml-1 capitalize">{selectedPO.status}</span>
+                      </Badge>
+                    </div>
+                    <div><strong>Requested By:</strong> {selectedPO.requestedBy}</div>
+                    {selectedPO.approvedBy && <div><strong>Approved By:</strong> {selectedPO.approvedBy}</div>}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Items Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Line Items</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Material</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit</TableHead>
+                        <TableHead>Rate (₹)</TableHead>
+                        <TableHead>Total (₹)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedPO.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.materialName}</TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                          <TableCell>₹{item.rate.toFixed(2)}</TableCell>
+                          <TableCell>₹{item.total.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  <Separator className="my-4" />
+                  <div className="flex justify-end">
+                    <div className="text-right">
+                      <div className="text-lg font-bold">
+                        Total Amount: ₹{selectedPO.totalAmount.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Terms and Notes */}
+              {(selectedPO.terms || selectedPO.notes) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedPO.terms && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Terms & Conditions</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm">{selectedPO.terms}</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                  
+                  {selectedPO.notes && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Notes</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm">{selectedPO.notes}</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+              Close
+            </Button>
+            {selectedPO?.status === "pending" && (
+              <>
+                <Button variant="destructive" onClick={() => {
+                  handleRejectPO(selectedPO);
+                  setIsViewDialogOpen(false);
+                }}>
+                  Reject
+                </Button>
+                <Button onClick={() => {
+                  handleApprovePO(selectedPO);
+                  setIsViewDialogOpen(false);
+                }}>
+                  Approve
+                </Button>
+              </>
+            )}
+            {selectedPO?.status === "approved" && (
+              <Button onClick={() => {
+                handleMarkDelivered(selectedPO);
+                setIsViewDialogOpen(false);
+              }}>
+                Mark as Delivered
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
