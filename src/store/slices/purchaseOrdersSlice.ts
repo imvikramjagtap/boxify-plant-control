@@ -27,6 +27,8 @@ const purchaseOrdersSlice = createSlice({
         ...action.payload,
         id: `PO-${year}${month}-${sequence}`,
         revision: 1,
+        date: typeof action.payload.date === 'string' ? action.payload.date : new Date(action.payload.date).toISOString(),
+        expectedDelivery: typeof action.payload.expectedDelivery === 'string' ? action.payload.expectedDelivery : new Date(action.payload.expectedDelivery).toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

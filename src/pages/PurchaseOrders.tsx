@@ -84,6 +84,7 @@ import {
 } from "@/store/slices/purchaseOrdersSlice";
 import { POItem, PurchaseOrder } from "@/store/types";
 import { generatePOEmailTemplate } from "@/utils/poUtils";
+import DeliveryTrackingTable from "@/components/forms/DeliveryTrackingTable";
 
 
 const getStatusColor = (status: string) => {
@@ -166,7 +167,9 @@ export default function PurchaseOrders() {
 
   const selectedSupplier = suppliers.find(s => s.id === newPO.supplierId);
   const availableMaterials = selectedSupplier 
-    ? rawMaterials.filter(m => m.supplierId === selectedSupplier.id)
+    ? rawMaterials.filter(m => 
+        m.suppliers.some(supplier => supplier.supplierId === selectedSupplier.id)
+      )
     : [];
 
   const addNewItem = () => {
@@ -275,8 +278,8 @@ export default function PurchaseOrders() {
 
     const newPurchaseOrder: Omit<PurchaseOrder, "id"> = {
       supplier: selectedSupplier,
-      date: new Date(),
-      expectedDelivery: new Date(newPO.expectedDelivery),
+      date: new Date().toISOString(),
+      expectedDelivery: new Date(newPO.expectedDelivery).toISOString(),
       status: "draft",
       totalAmount: taxCalculation.totalAfterTax,
       currency: "INR",
@@ -1389,62 +1392,54 @@ export default function PurchaseOrders() {
                    </Card>
                  </div>
 
-                 {/* Line Items with Delivery Status */}
-                 {selectedPO.status === 'acknowledged' && (
-                   <Card>
-                     <CardHeader>
-                       <CardTitle className="text-base">Delivery Management</CardTitle>
-                     </CardHeader>
-                     <CardContent>
-                       <Table>
-                         <TableHeader>
-                           <TableRow>
-                             <TableHead>Material</TableHead>
-                             <TableHead>Ordered Qty</TableHead>
-                             <TableHead>Delivered Qty</TableHead>
-                             <TableHead>Remaining</TableHead>
-                             <TableHead>Status</TableHead>
-                             <TableHead>Actions</TableHead>
-                           </TableRow>
-                         </TableHeader>
-                         <TableBody>
-                           {selectedPO.items.map((item) => {
-                             const delivered = item.deliveredQuantity || 0;
-                             const remaining = item.quantity - delivered;
-                             return (
-                               <TableRow key={item.id}>
-                                 <TableCell>{item.materialName}</TableCell>
-                                 <TableCell>{item.quantity} {item.unit}</TableCell>
-                                 <TableCell>{delivered} {item.unit}</TableCell>
-                                 <TableCell>{remaining} {item.unit}</TableCell>
-                                 <TableCell>
-                                   <Badge variant={
-                                     item.deliveryStatus === 'completed' ? 'default' :
-                                     item.deliveryStatus === 'partial' ? 'secondary' : 'outline'
-                                   }>
-                                     {item.deliveryStatus || 'pending'}
-                                   </Badge>
-                                 </TableCell>
-                                 <TableCell>
-                                   {remaining > 0 && (
-                                     <Button
-                                       size="sm"
-                                       variant="outline"
-                                       onClick={() => handlePartialDelivery(selectedPO, item)}
-                                     >
-                                       <Package className="h-3 w-3 mr-1" />
-                                       Record Delivery
-                                     </Button>
-                                   )}
-                                 </TableCell>
-                               </TableRow>
-                             );
-                           })}
-                         </TableBody>
-                       </Table>
-                     </CardContent>
-                   </Card>
-                 )}
+                  {/* Enhanced Delivery Tracking */}
+                  {(selectedPO.status === 'acknowledged' || selectedPO.status === 'delivered') && (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <DeliveryTrackingTable
+                          purchaseOrder={selectedPO}
+                          onDeliveryUpdate={(itemId, deliveredQuantity, qualityAccepted, grnNumber, inspectionNotes) => {
+                            dispatch(updateItemDelivery({
+                              poId: selectedPO.id,
+                              itemId,
+                              deliveredQuantity,
+                              qualityAccepted,
+                              grnNumber,
+                              inspectionNotes
+                            }));
+
+                            // Update stock in raw materials if quality is accepted
+                            const item = selectedPO.items.find(i => i.id === itemId);
+                            if (item && qualityAccepted) {
+                              dispatch(updateStock({
+                                id: item.materialId,
+                                quantity: deliveredQuantity,
+                                type: 'IN',
+                                poId: selectedPO.id
+                              }));
+
+                              // Add stock movement record
+                              dispatch(addStockMovement({
+                                materialId: item.materialId,
+                                type: 'IN',
+                                quantity: deliveredQuantity,
+                                reason: 'Purchase Order Delivery',
+                                poNumber: selectedPO.id,
+                                date: new Date().toISOString().split('T')[0],
+                                notes: `GRN: ${grnNumber || 'N/A'}`,
+                                createdBy: 'System'
+                              }));
+                            }
+                            
+                            toast({
+                              title: "Delivery Updated",
+                              description: `Item delivery recorded successfully.`
+                            });
+                          }}
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
 
               {/* Items Table */}
               <Card>

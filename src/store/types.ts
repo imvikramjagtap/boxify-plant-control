@@ -141,7 +141,7 @@ export interface DeliveryDetails {
   specialInstructions?: string;
   partialDeliveryAllowed: boolean;
   deliverySchedule?: Array<{
-    expectedDate: Date;
+    expectedDate: string;
     quantity: number;
     items: string[];
   }>;
@@ -150,8 +150,8 @@ export interface DeliveryDetails {
 export interface PurchaseOrder {
   id: string;
   supplier: Supplier;
-  date: Date;
-  expectedDelivery: Date;
+  date: string;
+  expectedDelivery: string;
   status: "draft" | "pending" | "approved" | "sent" | "acknowledged" | "delivered" | "rejected" | "cancelled";
   totalAmount: number;
   currency: string;

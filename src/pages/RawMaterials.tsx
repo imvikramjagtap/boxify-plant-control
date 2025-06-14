@@ -16,8 +16,10 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { 
   addMaterial, 
   updateMaterial,
+  updateStock,
   deleteMaterial
 } from "@/store/slices/rawMaterialsSlice";
+import { addStockMovement } from "@/store/slices/stockMovementsSlice";
 import MaterialForm from "@/components/forms/MaterialForm";
 import { RawMaterial, StockMovement } from "@/store/types";
 
@@ -177,18 +179,15 @@ export default function RawMaterials() {
       createdBy: "System"
     };
 
-    // Add stock movement to Redux
-    dispatch({ type: 'stockMovements/addStockMovement', payload: movement });
+    // Add stock movement to Redux using proper action creators
+    dispatch(addStockMovement(movement));
 
-    // Update material stock in Redux
-    dispatch({ 
-      type: 'rawMaterials/updateStock', 
-      payload: { 
-        id: selectedMaterial!.id, 
-        quantity: stockMovementData.quantity, 
-        type: stockMovementData.type 
-      } 
-    });
+    // Update material stock in Redux using proper action creators  
+    dispatch(updateStock({ 
+      id: selectedMaterial!.id, 
+      quantity: stockMovementData.quantity, 
+      type: stockMovementData.type 
+    }));
     
     toast({
       title: "Stock Updated",
