@@ -34,23 +34,23 @@ export default function Dashboard() {
       changeType: "negative" as const,
     },
     {
-      title: "Production Lines",
-      value: "3",
-      icon: Factory,
-      change: "0%",
-      changeType: "neutral" as const,
+      title: "Raw Materials",
+      value: "127",
+      icon: Package,
+      change: "+8%",
+      changeType: "positive" as const,
     },
   ];
 
   const recentJobs = [
-    {
-      id: "JOB001",
-      client: "ABC Industries",
-      boxType: "Top-Bottom",
-      quantity: 5000,
-      status: "In Progress",
-      dueDate: "2024-06-20",
-    },
+      {
+        id: "JOB001",
+        client: "ABC Industries",
+        boxType: "Top-Bottom",
+        quantity: 5000,
+        status: "In Progress",
+        dueDate: "2024-06-20",
+      },
     {
       id: "JOB002", 
       client: "XYZ Corp",
@@ -176,7 +176,7 @@ export default function Dashboard() {
                 <div className="space-y-1">
                   <div className="text-sm font-medium">Low Stock Alert</div>
                   <div className="text-xs text-muted-foreground">
-                    5-Ply corrugated sheets running low (2 days remaining)
+                    White PVA Adhesive running low (150 KG remaining, min: 200 KG)
                   </div>
                 </div>
               </div>

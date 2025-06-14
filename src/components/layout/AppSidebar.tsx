@@ -26,6 +26,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
   { name: "Suppliers", href: "/suppliers", icon: Users },
   { name: "Clients", href: "/clients", icon: Users },
+  { name: "Raw Materials", href: "/raw-materials", icon: Package },
   { name: "Box Master", href: "/boxes", icon: Package },
   { name: "Costing", href: "/costing", icon: Calculator },
   { name: "Job Cards", href: "/job-cards", icon: FileText },

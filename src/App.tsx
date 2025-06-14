@@ -9,6 +9,7 @@ import Suppliers from "./pages/Suppliers";
 import Clients from "./pages/Clients";
 import BoxMaster from "./pages/BoxMaster";
 import Costing from "./pages/Costing";
+import RawMaterials from "./pages/RawMaterials";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/boxes/:boxId" element={<BoxMaster />} />
             <Route path="/costing" element={<Costing />} />
             <Route path="/costing/:costingId" element={<Costing />} />
+            <Route path="/raw-materials" element={<RawMaterials />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
