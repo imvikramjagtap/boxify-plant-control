@@ -19,7 +19,7 @@ import {
   deleteMaterial
 } from "@/store/slices/rawMaterialsSlice";
 import MaterialForm from "@/components/forms/MaterialForm";
-import { RawMaterial } from "@/store/types";
+import { RawMaterial, StockMovement } from "@/store/types";
 
 const productTypes = [
   "Corrugated Sheets",
@@ -45,18 +45,6 @@ const unitsByProductType = {
   "Quality Control Equipment": ["Pieces"]
 };
 
-
-interface StockMovement {
-  id: string;
-  materialId: string;
-  type: "IN" | "OUT";
-  quantity: number;
-  reason: string;
-  jobId?: string;
-  poNumber?: string;
-  date: string;
-  notes: string;
-}
 
 export default function RawMaterials() {
   const { toast } = useToast();
@@ -421,7 +409,7 @@ export default function RawMaterials() {
                     <div>
                       <p className="text-sm font-medium">Primary Supplier</p>
                       <p className="text-sm text-muted-foreground">
-                        {material.suppliers.find(s => s.isPrimary)?.supplierName || 'N/A'}
+                        {material.suppliers?.find(s => s.isPrimary)?.supplierName || 'N/A'}
                       </p>
                     </div>
 
@@ -779,7 +767,7 @@ export default function RawMaterials() {
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Primary Supplier</Label>
                   <p className="text-sm text-muted-foreground">
-                    {selectedMaterial.suppliers.find(s => s.isPrimary)?.supplierName || 'N/A'}
+                    {selectedMaterial.suppliers?.find(s => s.isPrimary)?.supplierName || 'N/A'}
                   </p>
                 </div>
                 <div className="space-y-2">
