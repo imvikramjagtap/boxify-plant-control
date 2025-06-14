@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, Search, Package, AlertTriangle, TrendingDown, Eye, Settings, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, TrendingDown, Eye, Settings, Check, ChevronsUpDown, ArrowUpDown, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const productTypes = [
@@ -116,6 +116,9 @@ export default function RawMaterials() {
   const [activeTab, setActiveTab] = useState("materials");
   const [supplierSearchOpen, setSupplierSearchOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [movementSort, setMovementSort] = useState<"date" | "material" | "type">("date");
+  const [movementSortOrder, setMovementSortOrder] = useState<"asc" | "desc">("desc");
+  const [materialFilter, setMaterialFilter] = useState<string>("all");
 
   const [materials, setMaterials] = useState<RawMaterial[]>([
     {
@@ -718,6 +721,70 @@ export default function RawMaterials() {
         </TabsContent>
 
         <TabsContent value="movements" className="space-y-4">
+          {/* Sort and Filter Controls */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (movementSort === "date") {
+                    setMovementSortOrder(movementSortOrder === "asc" ? "desc" : "asc");
+                  } else {
+                    setMovementSort("date");
+                    setMovementSortOrder("desc");
+                  }
+                }}
+              >
+                <ArrowUpDown className="h-3 w-3 mr-1" />
+                Sort by Date {movementSort === "date" && (movementSortOrder === "asc" ? "↑" : "↓")}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (movementSort === "material") {
+                    setMovementSortOrder(movementSortOrder === "asc" ? "desc" : "asc");
+                  } else {
+                    setMovementSort("material");
+                    setMovementSortOrder("asc");
+                  }
+                }}
+              >
+                <ArrowUpDown className="h-3 w-3 mr-1" />
+                Sort by Material {movementSort === "material" && (movementSortOrder === "asc" ? "↑" : "↓")}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (movementSort === "type") {
+                    setMovementSortOrder(movementSortOrder === "asc" ? "desc" : "asc");
+                  } else {
+                    setMovementSort("type");
+                    setMovementSortOrder("asc");
+                  }
+                }}
+              >
+                <ArrowUpDown className="h-3 w-3 mr-1" />
+                Sort by Type {movementSort === "type" && (movementSortOrder === "asc" ? "↑" : "↓")}
+              </Button>
+            </div>
+            <Select value={materialFilter} onValueChange={setMaterialFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by material" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Materials</SelectItem>
+                {materials.map((material) => (
+                  <SelectItem key={material.id} value={material.id}>
+                    {material.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-4">
             {stockMovements.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -731,9 +798,26 @@ export default function RawMaterials() {
               </div>
             ) : (
               <div className="space-y-3">
-                {stockMovements.map((movement) => {
-                  const material = materials.find(m => m.id === movement.materialId);
-                  return (
+                {stockMovements
+                  .filter(movement => materialFilter === "all" || movement.materialId === materialFilter)
+                  .sort((a, b) => {
+                    if (movementSort === "date") {
+                      const comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+                      return movementSortOrder === "asc" ? comparison : -comparison;
+                    } else if (movementSort === "material") {
+                      const materialA = materials.find(m => m.id === a.materialId)?.name || "";
+                      const materialB = materials.find(m => m.id === b.materialId)?.name || "";
+                      const comparison = materialA.localeCompare(materialB);
+                      return movementSortOrder === "asc" ? comparison : -comparison;
+                    } else if (movementSort === "type") {
+                      const comparison = a.type.localeCompare(b.type);
+                      return movementSortOrder === "asc" ? comparison : -comparison;
+                    }
+                    return 0;
+                  })
+                  .map((movement) => {
+                    const material = materials.find(m => m.id === movement.materialId);
+                    return (
                     <Card key={movement.id}>
                       <CardContent className="pt-4">
                         <div className="flex justify-between items-start">
