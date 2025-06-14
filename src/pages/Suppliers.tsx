@@ -11,6 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+const productTypes = [
+  "Corrugated Sheets",
+  "Adhesive & Glue", 
+  "Stitching Wire",
+  "Printing Ink",
+  "Packaging Material"
+];
+
 interface ContactPerson {
   name: string;
   phone: string;
@@ -37,6 +45,7 @@ export default function Suppliers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [productFilter, setProductFilter] = useState<string>("all");
   const [suppliers, setSuppliers] = useState<Supplier[]>([
     {
       id: "SUP001",
@@ -83,10 +92,12 @@ export default function Suppliers() {
     contactPersons: [{ name: "", phone: "" }]
   });
 
-  const filteredSuppliers = suppliers.filter(supplier =>
-    supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    supplier.productType.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSuppliers = suppliers.filter(supplier => {
+    const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         supplier.productType.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesProduct = productFilter === "all" || supplier.productType === productFilter;
+    return matchesSearch && matchesProduct;
+  });
 
   useEffect(() => {
     if (supplierId) {
@@ -253,11 +264,11 @@ export default function Suppliers() {
                       <SelectValue placeholder="Select product type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Corrugated Sheets">Corrugated Sheets</SelectItem>
-                      <SelectItem value="Adhesive & Glue">Adhesive & Glue</SelectItem>
-                      <SelectItem value="Stitching Wire">Stitching Wire</SelectItem>
-                      <SelectItem value="Printing Ink">Printing Ink</SelectItem>
-                      <SelectItem value="Packaging Material">Packaging Material</SelectItem>
+                      {productTypes.map((product) => (
+                        <SelectItem key={product} value={product}>
+                          {product}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -357,8 +368,8 @@ export default function Suppliers() {
         </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center space-x-2">
+      {/* Search and Filter */}
+      <div className="flex items-center space-x-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -368,6 +379,19 @@ export default function Suppliers() {
             className="pl-8"
           />
         </div>
+        <Select value={productFilter} onValueChange={setProductFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by product" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border z-50">
+            <SelectItem value="all">All Products</SelectItem>
+            {productTypes.map((product) => (
+              <SelectItem key={product} value={product}>
+                {product}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Suppliers Grid */}

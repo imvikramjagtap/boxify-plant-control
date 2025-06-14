@@ -7,8 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Settings, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+const industryTypes = [
+  "Dairy",
+  "Automobile", 
+  "Pharma",
+  "Liquor"
+];
 
 interface ContactPerson {
   name: string;
@@ -22,6 +30,7 @@ interface Client {
   phone: string;
   gstNumber: string;
   productType: string;
+  industryType: string;
   state: string;
   address: string;
   pinCode: string;
@@ -37,6 +46,7 @@ export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [clients, setClients] = useState<Client[]>([
     {
       id: "CLI001",
@@ -44,7 +54,8 @@ export default function Clients() {
       email: "procurement@abcindustries.com",
       phone: "+91 9876543220",
       gstNumber: "27CCCCC0000C1Z5",
-      productType: "Electronics Packaging",
+      productType: "Electronics Packaging", 
+      industryType: "Automobile",
       state: "Maharashtra",
       address: "789 Industrial Estate, Pune",
       pinCode: "411001",
@@ -62,6 +73,7 @@ export default function Clients() {
       phone: "+91 9876543223",
       gstNumber: "29DDDDD0000D1Z5",
       productType: "FMCG Packaging",
+      industryType: "Dairy", 
       state: "Karnataka",
       address: "321 Commercial Complex, Mysore",
       pinCode: "570001",
@@ -79,6 +91,7 @@ export default function Clients() {
     phone: "",
     gstNumber: "",
     productType: "",
+    industryType: "",
     state: "",
     address: "",
     pinCode: "",
@@ -86,10 +99,12 @@ export default function Clients() {
     associatedItems: [""]
   });
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.productType.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = clients.filter(client => {
+    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         client.productType.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesIndustry = industryFilter === "all" || client.industryType === industryFilter;
+    return matchesSearch && matchesIndustry;
+  });
 
   useEffect(() => {
     if (clientId) {
@@ -102,6 +117,7 @@ export default function Clients() {
           phone: client.phone,
           gstNumber: client.gstNumber,
           productType: client.productType,
+          industryType: client.industryType,
           state: client.state,
           address: client.address,
           pinCode: client.pinCode,
@@ -152,6 +168,7 @@ export default function Clients() {
       phone: "",
       gstNumber: "",
       productType: "",
+      industryType: "",
       state: "",
       address: "",
       pinCode: "",
@@ -278,6 +295,27 @@ export default function Clients() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="industryType">Industry Type</Label>
+                  <Select
+                    value={formData.industryType}
+                    onValueChange={(value) => setFormData({ ...formData, industryType: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select industry type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {industryTypes.map((industry) => (
+                        <SelectItem key={industry} value={industry}>
+                          {industry}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <Label htmlFor="state">State</Label>
                   <Input
                     id="state"
@@ -383,6 +421,7 @@ export default function Clients() {
                   phone: "",
                   gstNumber: "",
                   productType: "",
+                  industryType: "",
                   state: "",
                   address: "",
                   pinCode: "",
@@ -403,8 +442,8 @@ export default function Clients() {
         </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center space-x-2">
+      {/* Search and Filter */}
+      <div className="flex items-center space-x-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -414,6 +453,19 @@ export default function Clients() {
             className="pl-8"
           />
         </div>
+        <Select value={industryFilter} onValueChange={setIndustryFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by industry" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border z-50">
+            <SelectItem value="all">All Industries</SelectItem>
+            {industryTypes.map((industry) => (
+              <SelectItem key={industry} value={industry}>
+                {industry}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Clients Grid */}
@@ -435,6 +487,11 @@ export default function Clients() {
               <div>
                 <p className="text-sm font-medium">Product Type</p>
                 <p className="text-sm text-muted-foreground">{client.productType}</p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">Industry Type</p>
+                <p className="text-sm text-muted-foreground">{client.industryType}</p>
               </div>
               
               <div>
