@@ -40,6 +40,21 @@ export interface Client {
   updatedAt: string;
 }
 
+export interface SupplierMaterial {
+  supplierId: string;
+  supplierName: string;
+  isPrimary: boolean;
+  unitPrice: number;
+  leadTimeDays: number;
+  minimumOrderQuantity: number;
+  qualityScore: number; // 0-100
+  deliveryPerformance: number; // 0-100 (on-time delivery %)
+  priceStability: number; // 0-100
+  lastSuppliedDate?: string;
+  contractValidTill?: string;
+  isActive: boolean;
+}
+
 export interface RawMaterial {
   id: string;
   name: string;
@@ -48,14 +63,14 @@ export interface RawMaterial {
   unit: string;
   currentStock: number;
   minimumStock: number;
-  unitPrice: number;
-  supplierId: string;
-  supplierName: string;
+  unitPrice: number; // Current/average price
+  suppliers: SupplierMaterial[]; // Multiple suppliers
   batchNumber: string;
   manufacturingDate: string;
   receivedDate: string;
   status: "In Stock" | "Low Stock" | "Out of Stock";
   priceHistory: PriceHistory[];
+  riskLevel: "Low" | "Medium" | "High"; // Based on supplier concentration
   createdAt: string;
   updatedAt: string;
 }

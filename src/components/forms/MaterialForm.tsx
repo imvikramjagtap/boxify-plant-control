@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
-import { RawMaterial } from "@/store/types";
+import { RawMaterial, SupplierMaterial } from "@/store/types";
 
 const productTypes = [
   "Corrugated Sheets",
@@ -71,7 +71,15 @@ export default function MaterialForm({ mode, initialData, onSubmit, onCancel }: 
 
   useEffect(() => {
     if (mode === "edit" && initialData) {
-      setFormData(prev => ({ ...prev, ...initialData }));
+      // Extract primary supplier info for form
+      const primarySupplier = initialData.suppliers?.find(s => s.isPrimary);
+      setFormData(prev => ({ 
+        ...prev, 
+        ...initialData,
+        supplierId: primarySupplier?.supplierId || "",
+        supplierName: primarySupplier?.supplierName || "",
+        unitPrice: initialData.unitPrice || primarySupplier?.unitPrice || 0
+      }));
     }
   }, [mode, initialData]);
 
@@ -127,8 +135,29 @@ export default function MaterialForm({ mode, initialData, onSubmit, onCancel }: 
       status = "Low Stock";
     }
 
+    // Calculate risk level based on number of suppliers
+    let riskLevel: "Low" | "Medium" | "High" = "High"; // Single supplier = High risk
+    
+    // Create supplier array
+    const suppliers: SupplierMaterial[] = [{
+      supplierId: formData.supplierId,
+      supplierName: formData.supplierName || selectedSupplier?.name || "",
+      isPrimary: true,
+      unitPrice: formData.unitPrice,
+      leadTimeDays: 7, // Default lead time
+      minimumOrderQuantity: 100, // Default MOQ
+      qualityScore: 85, // Default quality score
+      deliveryPerformance: 90, // Default delivery performance
+      priceStability: 80, // Default price stability
+      isActive: true
+    }];
+
+    const { supplierId, supplierName, qualityParams, ...materialData } = formData;
+
     onSubmit({
-      ...formData,
+      ...materialData,
+      suppliers,
+      riskLevel,
       status
     });
   };

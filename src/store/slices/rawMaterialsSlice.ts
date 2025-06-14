@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { RawMaterial, PriceHistory } from '../types';
+import { RawMaterial, PriceHistory, SupplierMaterial } from '../types';
 
 interface RawMaterialsState {
   materials: RawMaterial[];
@@ -23,8 +23,21 @@ const initialState: RawMaterialsState = {
       currentStock: 2500,
       minimumStock: 500,
       unitPrice: 45.50,
-      supplierId: "SUP001",
-      supplierName: "Paper Mills Pvt Ltd",
+      suppliers: [
+        {
+          supplierId: "SUP001",
+          supplierName: "Paper Mills Pvt Ltd",
+          isPrimary: true,
+          unitPrice: 45.50,
+          leadTimeDays: 7,
+          minimumOrderQuantity: 100,
+          qualityScore: 92,
+          deliveryPerformance: 88,
+          priceStability: 85,
+          lastSuppliedDate: "2024-06-10",
+          isActive: true
+        }
+      ],
       batchNumber: "B2024001",
       manufacturingDate: "2024-06-01",
       receivedDate: "2024-06-10",
@@ -33,6 +46,7 @@ const initialState: RawMaterialsState = {
         { price: 45.50, date: "2024-06-10", source: "po", poId: "PO-2024-001" },
         { price: 44.00, date: "2024-05-10", source: "po", poId: "PO-2024-005" }
       ],
+      riskLevel: "High",
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-06-10T00:00:00Z"
     },
@@ -49,8 +63,21 @@ const initialState: RawMaterialsState = {
       currentStock: 150,
       minimumStock: 200,
       unitPrice: 85.00,
-      supplierId: "SUP002",
-      supplierName: "Adhesive Solutions",
+      suppliers: [
+        {
+          supplierId: "SUP002",
+          supplierName: "Adhesive Solutions",
+          isPrimary: true,
+          unitPrice: 85.00,
+          leadTimeDays: 5,
+          minimumOrderQuantity: 50,
+          qualityScore: 95,
+          deliveryPerformance: 92,
+          priceStability: 78,
+          lastSuppliedDate: "2024-06-05",
+          isActive: true
+        }
+      ],
       batchNumber: "ADH2024005",
       manufacturingDate: "2024-05-15",
       receivedDate: "2024-06-05",
@@ -58,6 +85,7 @@ const initialState: RawMaterialsState = {
       priceHistory: [
         { price: 85.00, date: "2024-06-05", source: "po", poId: "PO-2024-002" }
       ],
+      riskLevel: "High",
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-06-05T00:00:00Z"
     },
@@ -74,8 +102,21 @@ const initialState: RawMaterialsState = {
       currentStock: 75,
       minimumStock: 20,
       unitPrice: 125.00,
-      supplierId: "SUP003",
-      supplierName: "Wire Industries Ltd",
+      suppliers: [
+        {
+          supplierId: "SUP003",
+          supplierName: "Wire Industries Ltd",
+          isPrimary: true,
+          unitPrice: 125.00,
+          leadTimeDays: 10,
+          minimumOrderQuantity: 20,
+          qualityScore: 87,
+          deliveryPerformance: 95,
+          priceStability: 90,
+          lastSuppliedDate: "2024-06-08",
+          isActive: true
+        }
+      ],
       batchNumber: "WIRE2024003",
       manufacturingDate: "2024-05-20",
       receivedDate: "2024-06-08",
@@ -83,6 +124,7 @@ const initialState: RawMaterialsState = {
       priceHistory: [
         { price: 125.00, date: "2024-06-08", source: "po", poId: "PO-2024-003" }
       ],
+      riskLevel: "High",
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-06-08T00:00:00Z"
     }
@@ -194,6 +236,82 @@ const rawMaterialsSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    
+    addSupplierToMaterial: (state, action: PayloadAction<{ materialId: string; supplier: SupplierMaterial }>) => {
+      const index = state.materials.findIndex(m => m.id === action.payload.materialId);
+      if (index !== -1) {
+        // Check if supplier already exists
+        const existingSupplierIndex = state.materials[index].suppliers.findIndex(
+          s => s.supplierId === action.payload.supplier.supplierId
+        );
+        
+        if (existingSupplierIndex === -1) {
+          state.materials[index].suppliers.push(action.payload.supplier);
+          
+          // Recalculate risk level
+          const supplierCount = state.materials[index].suppliers.length;
+          let riskLevel: "Low" | "Medium" | "High" = "Low";
+          if (supplierCount === 1) riskLevel = "High";
+          else if (supplierCount === 2) riskLevel = "Medium";
+          
+          state.materials[index].riskLevel = riskLevel;
+          state.materials[index].updatedAt = new Date().toISOString();
+        }
+      }
+    },
+    
+    updateSupplierInMaterial: (state, action: PayloadAction<{ materialId: string; supplierId: string; updates: Partial<SupplierMaterial> }>) => {
+      const materialIndex = state.materials.findIndex(m => m.id === action.payload.materialId);
+      if (materialIndex !== -1) {
+        const supplierIndex = state.materials[materialIndex].suppliers.findIndex(
+          s => s.supplierId === action.payload.supplierId
+        );
+        
+        if (supplierIndex !== -1) {
+          state.materials[materialIndex].suppliers[supplierIndex] = {
+            ...state.materials[materialIndex].suppliers[supplierIndex],
+            ...action.payload.updates
+          };
+          state.materials[materialIndex].updatedAt = new Date().toISOString();
+        }
+      }
+    },
+    
+    removeSupplierFromMaterial: (state, action: PayloadAction<{ materialId: string; supplierId: string }>) => {
+      const materialIndex = state.materials.findIndex(m => m.id === action.payload.materialId);
+      if (materialIndex !== -1) {
+        const material = state.materials[materialIndex];
+        
+        // Don't allow removing the last supplier
+        if (material.suppliers.length <= 1) {
+          state.error = "Cannot remove the last supplier from a material";
+          return;
+        }
+        
+        const wasRemovedPrimary = material.suppliers.find(
+          s => s.supplierId === action.payload.supplierId
+        )?.isPrimary;
+        
+        material.suppliers = material.suppliers.filter(
+          s => s.supplierId !== action.payload.supplierId
+        );
+        
+        // If primary supplier was removed, make the first remaining supplier primary
+        if (wasRemovedPrimary && material.suppliers.length > 0) {
+          material.suppliers[0].isPrimary = true;
+          material.unitPrice = material.suppliers[0].unitPrice;
+        }
+        
+        // Recalculate risk level
+        const supplierCount = material.suppliers.length;
+        let riskLevel: "Low" | "Medium" | "High" = "Low";
+        if (supplierCount === 1) riskLevel = "High";
+        else if (supplierCount === 2) riskLevel = "Medium";
+        
+        material.riskLevel = riskLevel;
+        material.updatedAt = new Date().toISOString();
+      }
+    },
   },
 });
 
@@ -205,7 +323,10 @@ export const {
   deleteMaterial, 
   setLoading, 
   setError, 
-  clearError 
+  clearError,
+  addSupplierToMaterial,
+  updateSupplierInMaterial,
+  removeSupplierFromMaterial
 } = rawMaterialsSlice.actions;
 
 export default rawMaterialsSlice.reducer;
@@ -215,7 +336,7 @@ export const selectAllMaterials = (state: { rawMaterials: RawMaterialsState }) =
 export const selectMaterialById = (state: { rawMaterials: RawMaterialsState }, id: string) => 
   state.rawMaterials.materials.find(m => m.id === id);
 export const selectMaterialsBySupplierId = (state: { rawMaterials: RawMaterialsState }, supplierId: string) => 
-  state.rawMaterials.materials.filter(m => m.supplierId === supplierId);
+  state.rawMaterials.materials.filter(m => m.suppliers.some(s => s.supplierId === supplierId));
 export const selectLowStockMaterials = (state: { rawMaterials: RawMaterialsState }) => 
   state.rawMaterials.materials.filter(m => m.status === 'Low Stock' || m.status === 'Out of Stock');
 export const selectMaterialsByProductType = (state: { rawMaterials: RawMaterialsState }, productType: string) => 

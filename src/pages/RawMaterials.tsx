@@ -419,8 +419,10 @@ export default function RawMaterials() {
                     </div>
                     
                     <div>
-                      <p className="text-sm font-medium">Supplier</p>
-                      <p className="text-sm text-muted-foreground">{material.supplierName}</p>
+                      <p className="text-sm font-medium">Primary Supplier</p>
+                      <p className="text-sm text-muted-foreground">
+                        {material.suppliers.find(s => s.isPrimary)?.supplierName || 'N/A'}
+                      </p>
                     </div>
 
                     <div>
@@ -775,8 +777,10 @@ export default function RawMaterials() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Supplier</Label>
-                  <p className="text-sm text-muted-foreground">{selectedMaterial.supplierName}</p>
+                  <Label className="text-sm font-medium">Primary Supplier</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedMaterial.suppliers.find(s => s.isPrimary)?.supplierName || 'N/A'}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Batch Number</Label>
