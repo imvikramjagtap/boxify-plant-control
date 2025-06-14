@@ -27,11 +27,14 @@ export interface Client {
   email: string;
   phone: string;
   gstNumber: string;
+  productType: string;
+  industryType: string;
   address: string;
   city: string;
   state: string;
   pinCode: string;
   contactPersons: ContactPerson[];
+  associatedItems: string[];
   status: "Active" | "Inactive";
   createdAt: string;
   updatedAt: string;

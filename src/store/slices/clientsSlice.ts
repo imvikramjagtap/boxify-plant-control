@@ -15,6 +15,8 @@ const initialState: ClientsState = {
       email: "procurement@abcretail.com",
       phone: "+91 9876543220",
       gstNumber: "27ZZZZZ0000Z1Z5",
+      productType: "Electronics Packaging",
+      industryType: "Automobile", 
       address: "456 Commercial Street",
       city: "Mumbai",
       state: "Maharashtra",
@@ -22,6 +24,7 @@ const initialState: ClientsState = {
       contactPersons: [
         { name: "Suresh Gupta", phone: "+91 9876543221" }
       ],
+      associatedItems: ["Monitor Boxes", "CPU Packaging"],
       status: "Active",
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z"

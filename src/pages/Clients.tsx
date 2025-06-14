@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Settings, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { addClient, updateClient, selectAllClients } from "@/store/slices/clientsSlice";
 
 const industryTypes = [
   "Dairy",
@@ -23,72 +25,18 @@ const industryTypes = [
   "E-commerce"
 ];
 
-interface ContactPerson {
-  name: string;
-  phone: string;
-}
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  gstNumber: string;
-  productType: string;
-  industryType: string;
-  state: string;
-  address: string;
-  pinCode: string;
-  contactPersons: ContactPerson[];
-  associatedItems: string[];
-  status: "Active" | "Inactive";
-}
-
 export default function Clients() {
   const { toast } = useToast();
+  const dispatch = useAppDispatch();
   const { clientId } = useParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [editingClient, setEditingClient] = useState<any>(null);
   const [industryFilter, setIndustryFilter] = useState<string>("all");
-  const [clients, setClients] = useState<Client[]>([
-    {
-      id: "CLI001",
-      name: "ABC Industries Pvt Ltd",
-      email: "procurement@abcindustries.com",
-      phone: "+91 9876543220",
-      gstNumber: "27CCCCC0000C1Z5",
-      productType: "Electronics Packaging", 
-      industryType: "Automobile",
-      state: "Maharashtra",
-      address: "789 Industrial Estate, Pune",
-      pinCode: "411001",
-      contactPersons: [
-        { name: "Suresh Gupta", phone: "+91 9876543221" },
-        { name: "Meera Joshi", phone: "+91 9876543222" }
-      ],
-      associatedItems: ["Monitor Boxes", "CPU Packaging", "Accessory Boxes"],
-      status: "Active"
-    },
-    {
-      id: "CLI002",
-      name: "XYZ Corp",
-      email: "orders@xyzcorp.com", 
-      phone: "+91 9876543223",
-      gstNumber: "29DDDDD0000D1Z5",
-      productType: "FMCG Packaging",
-      industryType: "Dairy", 
-      state: "Karnataka",
-      address: "321 Commercial Complex, Mysore",
-      pinCode: "570001",
-      contactPersons: [
-        { name: "Ravi Kumar", phone: "+91 9876543224" }
-      ],
-      associatedItems: ["Soap Boxes", "Shampoo Packaging"],
-      status: "Active"
-    }
-  ]);
+  
+  // Get clients from Redux store
+  const clients = useAppSelector((state: any) => state.clients.clients);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -137,12 +85,13 @@ export default function Clients() {
   const handleSubmit = () => {
     if (editingClient) {
       // Update existing client
-      const updatedClients = clients.map(client =>
-        client.id === editingClient.id
-          ? { ...client, ...formData, associatedItems: formData.associatedItems.filter(item => item.trim() !== "") }
-          : client
-      );
-      setClients(updatedClients);
+      dispatch(updateClient({
+        id: editingClient.id,
+        updates: {
+          ...formData,
+          associatedItems: formData.associatedItems.filter(item => item.trim() !== "")
+        }
+      }));
       
       toast({
         title: "Client Updated",
@@ -150,14 +99,12 @@ export default function Clients() {
       });
     } else {
       // Add new client
-      const newClient: Client = {
-        id: `CLI${String(clients.length + 1).padStart(3, '0')}`,
+      dispatch(addClient({
         ...formData,
+        city: formData.state, // Using state as city for now
         associatedItems: formData.associatedItems.filter(item => item.trim() !== ""),
         status: "Active"
-      };
-      
-      setClients([...clients, newClient]);
+      }));
       
       toast({
         title: "Client Added",

@@ -3,6 +3,8 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { v4 as uuidv4 } from "uuid";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { addCostingProject, updateCostingProject } from "@/store/slices/costingSlice";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -70,7 +72,7 @@ interface CostingRecord {
   createdAt: string;
 }
 
-// Mock data for boxes and clients
+// Mock data for boxes - in real app this would come from Redux
 const mockBoxes = [
   { 
     id: "BOX001", 
@@ -90,50 +92,17 @@ const mockBoxes = [
   }
 ];
 
-const mockClients = [
-  { id: "CLI001", name: "ABC Industries Pvt Ltd" },
-  { id: "CLI002", name: "XYZ Corp" },
-  { id: "CLI003", name: "DEF Ltd" }
-];
-
 export default function Costing() {
   const { costingId } = useParams<{ costingId: string }>();
   const { toast } = useToast();
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
   
-  // Mock costing data
-  const [costings, setCostings] = useState<CostingRecord[]>([
-    {
-      id: "COST001",
-      quotationId: "QUO001",
-      boxId: "BOX001",
-      boxName: "Monitor Packaging Box",
-      clientId: "CLI001",
-      clientName: "ABC Industries Pvt Ltd",
-      quantity: 1000,
-      totalBoxWeight: 485.2,
-      jwRate: 50,
-      sheetInwardRate: 2,
-      boxMakingRate: 1.5,
-      printingCostRate: 3,
-      accessoriesRate: 0.5,
-      roiPercentage: 15,
-      carriageOutward: 2,
-      jwCharges: 24.26,
-      sheetInwardCost: 0.97,
-      boxMakingCost: 0.73,
-      printingCost: 1.46,
-      accessoriesCost: 0.24,
-      mfgCostPerBox: 27.66,
-      roiAmount: 4.15,
-      totalCostPerBox: 33.81,
-      totalPrice: 33810,
-      quotationDate: "2024-06-15",
-      createdAt: "2024-06-15"
-    }
-  ]);
+  // Get data from Redux store
+  const costings = useAppSelector((state: any) => state.costing.projects);
+  const clients = useAppSelector((state: any) => state.clients.clients);
 
   const existingCosting = costingId ? costings.find(cost => cost.id === costingId) : null;
 
@@ -241,48 +210,38 @@ export default function Costing() {
   }, [selectedBox, quantity, jwRate, sheetInwardRate, boxMakingRate, printingCostRate, accessoriesRate, roiPercentage, carriageOutward]);
 
   const onSubmit = (data: FormValues) => {
-    const selectedClient = mockClients.find(client => client.id === data.clientId);
+    const selectedClient = clients.find(client => client.id === data.clientId);
     const selectedBoxData = mockBoxes.find(box => box.id === data.boxId);
     
-    const costing: CostingRecord = {
-      id: costingId || uuidv4(),
-      quotationId: data.quotationId,
-      boxId: data.boxId,
-      boxName: selectedBoxData?.name || '',
+    const costingData = {
+      name: `${selectedClient?.name || 'Unknown'} - ${selectedBoxData?.name || 'Unknown Box'}`,
       clientId: data.clientId,
-      clientName: selectedClient?.name || '',
+      boxId: data.boxId,
       quantity: data.quantity,
-      totalBoxWeight: selectedBoxData?.totalBoxWeight || 0,
-      jwRate: data.jwRate,
-      sheetInwardRate: data.sheetInwardRate,
-      boxMakingRate: data.boxMakingRate,
-      printingCostRate: data.printingCostRate,
-      accessoriesRate: data.accessoriesRate,
-      roiPercentage: data.roiPercentage,
-      carriageOutward: data.carriageOutward,
-      jwCharges: calculations.jwCharges,
-      sheetInwardCost: calculations.sheetInwardCost,
-      boxMakingCost: calculations.boxMakingCost,
-      printingCost: calculations.printingCost,
-      accessoriesCost: calculations.accessoriesCost,
-      mfgCostPerBox: calculations.mfgCostPerBox,
-      roiAmount: calculations.roiAmount,
-      totalCostPerBox: calculations.totalCostPerBox,
-      totalPrice: calculations.totalPrice,
-      quotationDate: data.quotationDate,
-      finalSalePrice: data.finalSalePrice,
-      rateFinalisedDate: data.rateFinalisedDate,
-      createdAt: new Date().toISOString().split('T')[0]
+      materialCosts: [
+        {
+          materialId: "RM001", // Mock material ID
+          quantity: data.quantity,
+          rate: calculations.mfgCostPerBox,
+          total: calculations.totalPrice
+        }
+      ],
+      laborCost: calculations.jwCharges * data.quantity,
+      overheadCost: (calculations.sheetInwardCost + calculations.accessoriesCost) * data.quantity,
+      profitMargin: data.roiPercentage,
+      totalCost: calculations.mfgCostPerBox * data.quantity,
+      quotedPrice: data.finalSalePrice || calculations.totalPrice,
+      status: "draft" as const
     };
 
     if (costingId) {
-      setCostings(costings.map(c => c.id === costingId ? costing : c));
+      dispatch(updateCostingProject({ id: costingId, updates: costingData }));
       toast({
         title: "Costing Updated",
         description: "Costing record has been successfully updated.",
       });
     } else {
-      setCostings([...costings, costing]);
+      dispatch(addCostingProject(costingData));
       toast({
         title: "Costing Added",
         description: "New costing record has been successfully added.",
@@ -290,13 +249,11 @@ export default function Costing() {
     }
 
     setShowForm(false);
-    console.log(JSON.stringify(costing, null, 2));
   };
 
   const filteredCostings = costings.filter(costing =>
-    costing.quotationId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    costing.boxName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    costing.clientName.toLowerCase().includes(searchTerm.toLowerCase())
+    costing.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    costing.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (showForm || costingId) {
@@ -402,7 +359,7 @@ export default function Costing() {
                           <SelectValue placeholder="Select Client" />
                         </SelectTrigger>
                         <SelectContent>
-                          {mockClients.map((client) => (
+                          {clients.map((client) => (
                             <SelectItem key={client.id} value={client.id}>
                               {client.name}
                             </SelectItem>
@@ -731,34 +688,27 @@ export default function Costing() {
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
-                  <CardTitle className="text-lg">{costing.quotationId}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{costing.boxName}</p>
+                  <CardTitle className="text-lg">{costing.id}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{costing.name}</p>
                 </div>
-                <Badge variant="outline">₹{costing.totalCostPerBox.toFixed(2)}/box</Badge>
+                <Badge variant="outline">₹{(costing.totalCost/costing.quantity).toFixed(2)}/box</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
                 <p className="text-sm font-medium">Client</p>
-                <p className="text-sm text-muted-foreground">{costing.clientName}</p>
+                <p className="text-sm text-muted-foreground">{clients.find(c => c.id === costing.clientId)?.name || 'Unknown'}</p>
               </div>
               
               <div>
                 <p className="text-sm font-medium">Quantity & Total</p>
-                <p className="text-sm text-muted-foreground">{costing.quantity.toLocaleString()} boxes • ₹{costing.totalPrice.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">{costing.quantity.toLocaleString()} boxes • ₹{costing.quotedPrice.toLocaleString()}</p>
               </div>
               
               <div>
-                <p className="text-sm font-medium">Quotation Date</p>
-                <p className="text-sm text-muted-foreground">{new Date(costing.quotationDate).toLocaleDateString()}</p>
+                <p className="text-sm font-medium">Status</p>
+                <Badge variant="outline">{costing.status}</Badge>
               </div>
-
-              {costing.finalSalePrice && (
-                <div>
-                  <p className="text-sm font-medium">Final Sale Price</p>
-                  <p className="text-sm text-green-600 font-semibold">₹{costing.finalSalePrice.toLocaleString()}</p>
-                </div>
-              )}
               
               <div className="flex justify-end">
                 <Button variant="outline" size="sm" onClick={() => navigate(`/costing/${costing.id}`)}>

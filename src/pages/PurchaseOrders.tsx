@@ -64,15 +64,17 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { 
-  supplierService, 
-  materialService, 
-  purchaseOrderService, 
-  type Supplier, 
-  type RawMaterial, 
-  type PurchaseOrder, 
-  type POItem 
-} from "@/lib/dataService";
+  addPurchaseOrder, 
+  updatePurchaseOrder, 
+  approvePurchaseOrder,
+  rejectPurchaseOrder,
+  deliverPurchaseOrder
+} from "@/store/slices/purchaseOrdersSlice";
+import { updateStock } from "@/store/slices/rawMaterialsSlice";
+import { addStockMovement } from "@/store/slices/stockMovementsSlice";
+import { POItem, PurchaseOrder } from "@/store/types";
 
 
 const getStatusColor = (status: string) => {
@@ -105,18 +107,19 @@ const getStatusIcon = (status: string) => {
 
 export default function PurchaseOrders() {
   const { toast } = useToast();
+  const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState("list");
-  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [selectedPO, setSelectedPO] = useState<any>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [supplierSearchOpen, setSupplierSearchOpen] = useState(false);
   
-  // Data will be loaded from the shared service
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  // Get data from Redux store
+  const suppliers = useAppSelector((state: any) => state.suppliers.suppliers);
+  const rawMaterials = useAppSelector((state: any) => state.rawMaterials.materials);
+  const purchaseOrders = useAppSelector((state: any) => state.purchaseOrders.orders);
   
   // New PO form state
   const [newPO, setNewPO] = useState({
@@ -126,13 +129,6 @@ export default function PurchaseOrders() {
     notes: "",
     items: [{ materialId: "", quantity: 0, rate: 0, total: 0, unit: "" }]
   });
-
-  // Load data on component mount
-  useEffect(() => {
-    setSuppliers(supplierService.getAll());
-    setRawMaterials(materialService.getAll());
-    setPurchaseOrders(purchaseOrderService.getAll());
-  }, []);
 
   const filteredPOs = purchaseOrders.filter(po => {
     const matchesSearch = po.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -222,15 +218,16 @@ export default function PurchaseOrders() {
       requestedBy: "Current User", // In real app, get from auth context
       approvedBy: null,
       terms: newPO.terms,
-      notes: newPO.notes
+      notes: newPO.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
-    const createdPO = purchaseOrderService.add(newPurchaseOrder);
-    setPurchaseOrders(purchaseOrderService.getAll());
+    dispatch(addPurchaseOrder(newPurchaseOrder));
     
     toast({
       title: "Purchase Order Created",
-      description: `PO ${createdPO.id} has been created successfully.`,
+      description: "Purchase Order has been created successfully.",
     });
     
     setIsCreateDialogOpen(false);
@@ -247,35 +244,50 @@ export default function PurchaseOrders() {
     });
   };
 
-  const handleApprovePO = (po: PurchaseOrder) => {
-    purchaseOrderService.approve(po.id, "Current User");
-    setPurchaseOrders(purchaseOrderService.getAll());
+  const handleApprovePO = (po: any) => {
+    dispatch(approvePurchaseOrder({ id: po.id, approvedBy: "Current User" }));
     toast({
       title: "PO Approved",
       description: `Purchase Order ${po.id} has been approved.`,
     });
   };
 
-  const handleRejectPO = (po: PurchaseOrder) => {
-    purchaseOrderService.reject(po.id);
-    setPurchaseOrders(purchaseOrderService.getAll());
+  const handleRejectPO = (po: any) => {
+    dispatch(rejectPurchaseOrder(po.id));
     toast({
       title: "PO Rejected",
       description: `Purchase Order ${po.id} has been rejected.`,
     });
   };
 
-  const handleMarkDelivered = (po: PurchaseOrder) => {
-    purchaseOrderService.update(po.id, { status: "delivered" });
-    setPurchaseOrders(purchaseOrderService.getAll());
-    setRawMaterials(materialService.getAll()); // Refresh materials to show updated stock
+  const handleMarkDelivered = (po: any) => {
+    dispatch(deliverPurchaseOrder(po.id));
+    // Update stock for all items in the PO
+    po.items.forEach((item: any) => {
+      dispatch(updateStock({ 
+        id: item.materialId, 
+        quantity: item.quantity, 
+        type: "IN", 
+        poId: po.id 
+      }));
+      dispatch(addStockMovement({
+        materialId: item.materialId,
+        type: "IN",
+        quantity: item.quantity,
+        reason: "Purchase Order Delivery",
+        poNumber: po.id,
+        notes: `Delivered from ${po.supplier.name}`,
+        date: new Date().toISOString().split('T')[0],
+        createdBy: "System"
+      }));
+    });
     toast({
       title: "PO Delivered",
       description: `Purchase Order ${po.id} marked as delivered. Stock has been updated.`,
     });
   };
 
-  const handleViewPO = (po: PurchaseOrder) => {
+  const handleViewPO = (po: any) => {
     setSelectedPO(po);
     setIsViewDialogOpen(true);
   };
