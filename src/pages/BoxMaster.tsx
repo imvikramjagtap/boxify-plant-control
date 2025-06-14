@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Search, Settings } from "lucide-react";
+import { ArrowLeft, Plus, Search, Settings, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -92,6 +92,7 @@ export default function BoxMaster() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [clientFilter, setClientFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   
   // Mock boxes data (in real app, this would come from state management)
@@ -416,11 +417,13 @@ export default function BoxMaster() {
     console.log(JSON.stringify(box, null, 2));
   };
 
-  const filteredBoxes = boxes.filter(box =>
-    box.boxName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    box.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    box.itemCode.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredBoxes = boxes.filter(box => {
+    const matchesSearch = box.boxName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         box.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         box.itemCode.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesClient = clientFilter === "all" || box.clientId === clientFilter;
+    return matchesSearch && matchesClient;
+  });
 
   if (showForm || boxId) {
     return (
@@ -1052,8 +1055,8 @@ export default function BoxMaster() {
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center space-x-2">
+      {/* Search and Filter */}
+      <div className="flex items-center space-x-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -1063,71 +1066,103 @@ export default function BoxMaster() {
             className="pl-8"
           />
         </div>
+        <Select value={clientFilter} onValueChange={setClientFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by client" />
+          </SelectTrigger>
+          <SelectContent className="bg-background border z-50">
+            <SelectItem value="all">All Clients</SelectItem>
+            {mockClients.map((client) => (
+              <SelectItem key={client.id} value={client.id}>
+                {client.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Boxes Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredBoxes.map((box) => (
-          <Card key={box.id} className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">{box.boxName}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{box.itemCode}</p>
+      {filteredBoxes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <Package className="h-16 w-16 text-muted-foreground" />
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-semibold">No boxes found</h3>
+            <p className="text-muted-foreground">
+              {searchTerm || clientFilter !== "all" 
+                ? "Try adjusting your search criteria or filters"
+                : "Get started by creating your first box design"
+              }
+            </p>
+          </div>
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Box
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredBoxes.map((box) => (
+            <Card key={box.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-lg">{box.boxName}</CardTitle>
+                    <p className="text-sm text-muted-foreground">{box.itemCode}</p>
+                  </div>
+                  <Badge variant="outline">{box.ply}</Badge>
                 </div>
-                <Badge variant="outline">{box.ply}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-sm font-medium">Client</p>
-                <p className="text-sm text-muted-foreground">{box.clientName}</p>
-              </div>
-              
-              <div>
-                <p className="text-sm font-medium">Dimensions (L×W×H)</p>
-                <p className="text-sm text-muted-foreground">{box.length} × {box.width} × {box.height} mm</p>
-              </div>
-              
-              <div>
-                <p className="text-sm font-medium">Box Type & Flute</p>
-                <p className="text-sm text-muted-foreground">{box.boxType} • {box.fluteType}</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium">Manufacturing</p>
-                <p className="text-sm text-muted-foreground">
-                  {box.mfgJoint}
-                  {box.numberOfPins && ` (${box.numberOfPins} pins)`}
-                </p>
-              </div>
-
-              {box.printing && (
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div>
-                  <p className="text-sm font-medium">Printing</p>
+                  <p className="text-sm font-medium">Client</p>
+                  <p className="text-sm text-muted-foreground">{box.clientName}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium">Dimensions (L×W×H)</p>
+                  <p className="text-sm text-muted-foreground">{box.length} × {box.width} × {box.height} mm</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium">Box Type & Flute</p>
+                  <p className="text-sm text-muted-foreground">{box.boxType} • {box.fluteType}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium">Manufacturing</p>
                   <p className="text-sm text-muted-foreground">
-                    {box.printingType} • {box.numberOfColors} colors
+                    {box.mfgJoint}
+                    {box.numberOfPins && ` (${box.numberOfPins} pins)`}
                   </p>
                 </div>
-              )}
 
-              {box.totalBoxWeight && (
-                <div>
-                  <p className="text-sm font-medium">Box Weight</p>
-                  <p className="text-sm text-muted-foreground">{box.totalBoxWeight.toFixed(2)} gm</p>
+                {box.printing && (
+                  <div>
+                    <p className="text-sm font-medium">Printing</p>
+                    <p className="text-sm text-muted-foreground">
+                      {box.printingType} • {box.numberOfColors} colors
+                    </p>
+                  </div>
+                )}
+
+                {box.totalBoxWeight && (
+                  <div>
+                    <p className="text-sm font-medium">Box Weight</p>
+                    <p className="text-sm text-muted-foreground">{box.totalBoxWeight.toFixed(2)} gm</p>
+                  </div>
+                )}
+                
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/boxes/${box.id}`)}>
+                    <Settings className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
                 </div>
-              )}
-              
-              <div className="flex justify-end">
-                <Button variant="outline" size="sm" onClick={() => navigate(`/boxes/${box.id}`)}>
-                  <Settings className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

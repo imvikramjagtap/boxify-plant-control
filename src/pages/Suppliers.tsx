@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Settings } from "lucide-react";
+import { Plus, Search, Settings, Truck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const productTypes = [
@@ -395,67 +395,86 @@ export default function Suppliers() {
       </div>
 
       {/* Suppliers Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredSuppliers.map((supplier) => (
-          <Card key={supplier.id} className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">{supplier.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{supplier.id}</p>
+      {filteredSuppliers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <Truck className="h-16 w-16 text-muted-foreground" />
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-semibold">No suppliers found</h3>
+            <p className="text-muted-foreground">
+              {searchTerm || productFilter !== "all" 
+                ? "Try adjusting your search criteria or filters"
+                : "Get started by adding your first supplier"
+              }
+            </p>
+          </div>
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Supplier
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredSuppliers.map((supplier) => (
+            <Card key={supplier.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-lg">{supplier.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground">{supplier.id}</p>
+                  </div>
+                  <Badge variant={supplier.status === "Active" ? "default" : "secondary"}>
+                    {supplier.status}
+                  </Badge>
                 </div>
-                <Badge variant={supplier.status === "Active" ? "default" : "secondary"}>
-                  {supplier.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-sm font-medium">Product Type</p>
-                <p className="text-sm text-muted-foreground">{supplier.productType}</p>
-              </div>
-              
-              <div>
-                <p className="text-sm font-medium">Contact</p>
-                <p className="text-sm text-muted-foreground">{supplier.email}</p>
-                <p className="text-sm text-muted-foreground">{supplier.phone}</p>
-              </div>
-              
-              <div>
-                <p className="text-sm font-medium">Location</p>
-                <p className="text-sm text-muted-foreground">{supplier.state} - {supplier.pinCode}</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium">GST Number</p>
-                <p className="text-sm text-muted-foreground">{supplier.gstNumber}</p>
-              </div>
-
-              {supplier.contactPersons.length > 0 && (
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div>
-                  <p className="text-sm font-medium">Contact Persons</p>
-                  {supplier.contactPersons.map((contact, index) => (
-                    <p key={index} className="text-sm text-muted-foreground">
-                      {contact.name} - {contact.phone}
-                    </p>
-                  ))}
+                  <p className="text-sm font-medium">Product Type</p>
+                  <p className="text-sm text-muted-foreground">{supplier.productType}</p>
                 </div>
-              )}
-              
-              <div className="flex justify-end">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => navigate(`/suppliers/${supplier.id}`)}
-                >
-                  <Settings className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                
+                <div>
+                  <p className="text-sm font-medium">Contact</p>
+                  <p className="text-sm text-muted-foreground">{supplier.email}</p>
+                  <p className="text-sm text-muted-foreground">{supplier.phone}</p>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium">Location</p>
+                  <p className="text-sm text-muted-foreground">{supplier.state} - {supplier.pinCode}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium">GST Number</p>
+                  <p className="text-sm text-muted-foreground">{supplier.gstNumber}</p>
+                </div>
+
+                {supplier.contactPersons.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium">Contact Persons</p>
+                    {supplier.contactPersons.map((contact, index) => (
+                      <p key={index} className="text-sm text-muted-foreground">
+                        {contact.name} - {contact.phone}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate(`/suppliers/${supplier.id}`)}
+                  >
+                    <Settings className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
