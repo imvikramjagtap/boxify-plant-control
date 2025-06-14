@@ -141,6 +141,13 @@ export default function PurchaseOrders() {
   const rawMaterials = useAppSelector((state: any) => state.rawMaterials.materials);
   const purchaseOrders = useAppSelector((state: any) => state.purchaseOrders.orders);
   
+  // Default company address - should be configurable in real app
+  const defaultCompanyAddress = "ABC Packaging Solutions Pvt Ltd\n123 Industrial Area, Sector 45\nGurgaon, Haryana - 122001\nIndia";
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<string>("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  
   // New PO form state
   const [newPO, setNewPO] = useState({
     supplierId: "",
@@ -151,11 +158,12 @@ export default function PurchaseOrders() {
     paymentMethod: "neft" as const,
     creditDays: 30,
     advancePercentage: 0,
-    deliveryAddress: "",
+    deliveryAddress: defaultCompanyAddress,
     contactPerson: "",
     contactPhone: "",
     partialDeliveryAllowed: true,
-    tdsRate: 2
+    tdsRate: 2,
+    gstRate: 0
   });
 
   const filteredPOs = purchaseOrders.filter(po => {
@@ -163,6 +171,35 @@ export default function PurchaseOrders() {
                          po.supplier.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || po.status === statusFilter;
     return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    let aValue, bValue;
+    
+    // Handle nested properties
+    if (sortField === "supplier.name") {
+      aValue = a.supplier.name;
+      bValue = b.supplier.name;
+    } else {
+      aValue = a[sortField];
+      bValue = b[sortField];
+    }
+    
+    // Handle date sorting
+    if (sortField === "date" || sortField === "expectedDelivery") {
+      aValue = new Date(aValue).getTime();
+      bValue = new Date(bValue).getTime();
+    }
+    
+    // Handle string sorting
+    if (typeof aValue === "string") {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+    
+    if (sortDirection === "asc") {
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+    } else {
+      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+    }
   });
 
   const selectedSupplier = suppliers.find(s => s.id === newPO.supplierId);
@@ -216,7 +253,7 @@ export default function PurchaseOrders() {
 
   const calculateTaxes = () => {
     const subtotal = getTotalAmount();
-    const gstAmount = subtotal * 0.18; // 18% GST
+    const gstAmount = subtotal * ((newPO.gstRate || 0) / 100); // Use selected GST rate
     const tdsAmount = subtotal * (newPO.tdsRate / 100);
     const totalAfterTax = subtotal + gstAmount - tdsAmount;
     
@@ -239,9 +276,64 @@ export default function PurchaseOrders() {
       return;
     }
 
+    // If editing, update existing PO
+    if (editingPO) {
+      const taxCalculation = calculateTaxes();
+      
+      dispatch(updatePurchaseOrder({
+        id: editingPO.id,
+        updates: {
+          supplier: selectedSupplier,
+          expectedDelivery: new Date(newPO.expectedDelivery).toISOString(),
+          terms: newPO.terms,
+          notes: newPO.notes,
+          items: newPO.items.map((item, index) => {
+            const material = rawMaterials.find(m => m.id === item.materialId);
+            const gstRate = newPO.gstRate || 0;
+            const gstAmount = item.total * (gstRate / 100);
+            
+            return {
+              ...editingPO.items[index],
+              materialId: item.materialId,
+              materialName: material?.name || "",
+              quantity: item.quantity,
+              rate: item.rate,
+              total: item.total,
+              unit: item.unit,
+              gstRate,
+              gstAmount,
+            };
+          }),
+          totalAmount: taxCalculation.totalAfterTax,
+          taxCalculation,
+          paymentTerms: {
+            paymentMethod: newPO.paymentMethod,
+            creditDays: newPO.creditDays,
+            advancePercentage: newPO.advancePercentage
+          },
+          deliveryDetails: {
+            deliveryAddress: newPO.deliveryAddress || defaultCompanyAddress,
+            contactPerson: newPO.contactPerson || "Purchase Manager",
+            contactPhone: newPO.contactPhone || "+91-9876543210",
+            partialDeliveryAllowed: newPO.partialDeliveryAllowed
+          }
+        }
+      }));
+      
+      toast({
+        title: "Purchase Order Updated",
+        description: "Purchase Order has been updated successfully.",
+      });
+      
+      setEditingPO(null);
+      setIsCreateDialogOpen(false);
+      resetForm();
+      return;
+    }
+
     const poItems: POItem[] = newPO.items.map((item, index) => {
       const material = rawMaterials.find(m => m.id === item.materialId);
-      const gstRate = 18; // Default 18% GST
+      const gstRate = newPO.gstRate || 0; // Use selected GST rate
       const gstAmount = item.total * (gstRate / 100);
       
       return {
@@ -295,9 +387,9 @@ export default function PurchaseOrders() {
         advancePercentage: newPO.advancePercentage
       },
       deliveryDetails: {
-        deliveryAddress: newPO.deliveryAddress || selectedSupplier.address,
-        contactPerson: newPO.contactPerson || selectedSupplier.contactPersons[0]?.name || "",
-        contactPhone: newPO.contactPhone || selectedSupplier.contactPersons[0]?.phone || selectedSupplier.phone,
+        deliveryAddress: newPO.deliveryAddress || defaultCompanyAddress,
+        contactPerson: newPO.contactPerson || "Purchase Manager",
+        contactPhone: newPO.contactPhone || "+91-9876543210",
         partialDeliveryAllowed: newPO.partialDeliveryAllowed
       },
       createdAt: new Date().toISOString(),
@@ -325,11 +417,12 @@ export default function PurchaseOrders() {
       paymentMethod: "neft" as const,
       creditDays: 30,
       advancePercentage: 0,
-      deliveryAddress: "",
+      deliveryAddress: defaultCompanyAddress,
       contactPerson: "",
       contactPhone: "",
       partialDeliveryAllowed: true,
-      tdsRate: 2
+      tdsRate: 2,
+      gstRate: 0
     });
   };
 
@@ -393,8 +486,33 @@ export default function PurchaseOrders() {
       });
       return;
     }
+    
+    // Set the form state to the selected PO data
+    setNewPO({
+      supplierId: po.supplier.id,
+      expectedDelivery: po.expectedDelivery.split('T')[0], // Format for input[type="date"]
+      terms: po.terms || "",
+      notes: po.notes || "",
+      items: po.items.map(item => ({
+        materialId: item.materialId,
+        quantity: item.quantity,
+        rate: item.rate,
+        total: item.total,
+        unit: item.unit
+      })),
+      paymentMethod: po.paymentTerms?.paymentMethod || "neft",
+      creditDays: po.paymentTerms?.creditDays || 30,
+      advancePercentage: po.paymentTerms?.advancePercentage || 0,
+      deliveryAddress: po.deliveryDetails?.deliveryAddress || defaultCompanyAddress,
+      contactPerson: po.deliveryDetails?.contactPerson || "",
+      contactPhone: po.deliveryDetails?.contactPhone || "",
+      partialDeliveryAllowed: po.deliveryDetails?.partialDeliveryAllowed ?? true,
+      tdsRate: po.taxCalculation?.tdsRate || 2,
+      gstRate: po.items[0]?.gstRate || 0
+    });
+    
     setEditingPO(po);
-    setIsEditDialogOpen(true);
+    setIsCreateDialogOpen(true); // Reuse the create dialog for editing
   };
 
   const handlePartialDelivery = (po: any, item: any) => {
@@ -654,10 +772,10 @@ export default function PurchaseOrders() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  Create New Purchase Order
+                  {editingPO ? `Edit Purchase Order - ${editingPO.id}` : "Create New Purchase Order"}
                 </DialogTitle>
                 <DialogDescription>
-                  Create a new purchase order for raw materials
+                  {editingPO ? "Update the details below to modify the purchase order." : "Create a new purchase order for raw materials"}
                 </DialogDescription>
               </DialogHeader>
 
@@ -878,6 +996,24 @@ export default function PurchaseOrders() {
                           />
                         </div>
                         <div>
+                          <Label htmlFor="gstRate">GST Rate (%)</Label>
+                          <Select
+                            value={newPO.gstRate.toString()}
+                            onValueChange={(value) => setNewPO(prev => ({ ...prev, gstRate: parseFloat(value) || 0 }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select GST rate" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0% (Exempt)</SelectItem>
+                              <SelectItem value="5">5% (Essential goods)</SelectItem>
+                              <SelectItem value="12">12% (Standard rate)</SelectItem>
+                              <SelectItem value="18">18% (Standard rate)</SelectItem>
+                              <SelectItem value="28">28% (Luxury goods)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
                           <Label htmlFor="tdsRate">TDS Rate (%)</Label>
                           <Input
                             type="number"
@@ -900,16 +1036,16 @@ export default function PurchaseOrders() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div>
-                        <Label htmlFor="deliveryAddress">Delivery Address</Label>
-                        <Textarea
-                          id="deliveryAddress"
-                          placeholder="Delivery address (default: supplier address)"
-                          value={newPO.deliveryAddress}
-                          onChange={(e) => setNewPO(prev => ({ ...prev, deliveryAddress: e.target.value }))}
-                          rows={2}
-                        />
-                      </div>
+                        <div>
+                          <Label htmlFor="deliveryAddress">Delivery Address</Label>
+                          <Textarea
+                            id="deliveryAddress"
+                            placeholder="Delivery address (default: company address)"
+                            value={newPO.deliveryAddress}
+                            onChange={(e) => setNewPO(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                            rows={4}
+                          />
+                        </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="contactPerson">Contact Person</Label>
@@ -992,7 +1128,7 @@ export default function PurchaseOrders() {
                           <span>₹{getTotalAmount().toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span>GST (18%):</span>
+                          <span>GST ({newPO.gstRate || 0}%):</span>
                           <span>₹{calculateTaxes().gstAmount.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm text-red-600">
@@ -1031,14 +1167,18 @@ export default function PurchaseOrders() {
               </div>
 
               <DialogFooter className="flex gap-2">
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                <Button variant="outline" onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  setEditingPO(null);
+                  resetForm();
+                }}>
                   Cancel
                 </Button>
                 <Button variant="secondary">
                   Save Draft
                 </Button>
                 <Button onClick={handleCreatePO}>
-                  Create PO
+                  {editingPO ? "Update PO" : "Create PO"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1103,12 +1243,60 @@ export default function PurchaseOrders() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>PO Number</TableHead>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Expected Delivery</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Amount</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        setSortField("id");
+                        setSortDirection(sortField === "id" && sortDirection === "asc" ? "desc" : "asc");
+                      }}
+                    >
+                      PO Number {sortField === "id" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        setSortField("supplier.name");
+                        setSortDirection(sortField === "supplier.name" && sortDirection === "asc" ? "desc" : "asc");
+                      }}
+                    >
+                      Supplier {sortField === "supplier.name" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        setSortField("date");
+                        setSortDirection(sortField === "date" && sortDirection === "asc" ? "desc" : "asc");
+                      }}
+                    >
+                      Date {sortField === "date" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        setSortField("expectedDelivery");
+                        setSortDirection(sortField === "expectedDelivery" && sortDirection === "asc" ? "desc" : "asc");
+                      }}
+                    >
+                      Expected Delivery {sortField === "expectedDelivery" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        setSortField("status");
+                        setSortDirection(sortField === "status" && sortDirection === "asc" ? "desc" : "asc");
+                      }}
+                    >
+                      Status {sortField === "status" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        setSortField("totalAmount");
+                        setSortDirection(sortField === "totalAmount" && sortDirection === "asc" ? "desc" : "asc");
+                      }}
+                    >
+                      Amount {sortField === "totalAmount" && (sortDirection === "asc" ? "↑" : "↓")}
+                    </TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
