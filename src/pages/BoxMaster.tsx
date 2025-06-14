@@ -805,6 +805,25 @@ export default function BoxMaster() {
                         ))}
                       </div>
                     </div>
+                    <div className="col-span-full">
+                      <Label htmlFor="printingFile">Upload Printing Design:</Label>
+                      <Input
+                        id="printingFile"
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf,.svg,.bmp,.tiff"
+                        className="bg-background"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            // Handle file upload logic here
+                            console.log("Uploaded file:", file.name, file.type);
+                          }
+                        }}
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Supported formats: JPG, PNG, PDF, SVG, BMP, TIFF
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
