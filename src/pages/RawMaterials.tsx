@@ -12,6 +12,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Plus, Search, Package, AlertTriangle, TrendingDown, Eye, Settings, Check, ChevronsUpDown, ArrowUpDown, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { 
+  addMaterial, 
+  updateMaterial, 
+  selectAllMaterials 
+} from "@/store/slices/rawMaterialsSlice";
+import { selectAllSuppliers } from "@/store/slices/suppliersSlice";
 
 const productTypes = [
   "Corrugated Sheets",
@@ -24,39 +31,7 @@ const productTypes = [
   "Quality Control Equipment"
 ];
 
-// Mock suppliers data - in real app, this would come from the suppliers page
-const mockSuppliers = [
-  {
-    id: "SUP001",
-    name: "Paper Mills Pvt Ltd",
-    productType: "Corrugated Sheets"
-  },
-  {
-    id: "SUP002", 
-    name: "Adhesive Solutions",
-    productType: "Adhesive & Glue"
-  },
-  {
-    id: "SUP003",
-    name: "Wire Industries Ltd",
-    productType: "Stitching Wire"
-  },
-  {
-    id: "SUP004",
-    name: "Color Print Inks",
-    productType: "Printing Ink"
-  },
-  {
-    id: "SUP005",
-    name: "Pack Materials Co",
-    productType: "Packaging Material"
-  },
-  {
-    id: "SUP006",
-    name: "Lamination Experts",
-    productType: "Lamination Material"
-  }
-];
+// Remove mock suppliers - we'll use Redux store
 
 const unitsByProductType = {
   "Corrugated Sheets": ["Pieces", "Sq.Ft"],
@@ -106,13 +81,14 @@ interface StockMovement {
 
 export default function RawMaterials() {
   const { toast } = useToast();
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [productFilter, setProductFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
-  const [selectedMaterial, setSelectedMaterial] = useState<RawMaterial | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("materials");
   const [supplierSearchOpen, setSupplierSearchOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -120,72 +96,10 @@ export default function RawMaterials() {
   const [movementSortOrder, setMovementSortOrder] = useState<"asc" | "desc">("desc");
   const [materialFilter, setMaterialFilter] = useState<string>("all");
 
-  const [materials, setMaterials] = useState<RawMaterial[]>([
-    {
-      id: "RM001",
-      name: "5-Ply Corrugated Sheet - Brown",
-      productType: "Corrugated Sheets",
-      specifications: {
-        grade: "5-Ply",
-        thickness: "5mm",
-        dimensions: "48x36 inches",
-        color: "Brown"
-      },
-      unit: "Pieces",
-      currentStock: 2500,
-      minimumStock: 500,
-      unitPrice: 45.50,
-      supplierId: "SUP001",
-      supplierName: "Paper Mills Pvt Ltd",
-      batchNumber: "B2024001",
-      manufacturingDate: "2024-06-01",
-      receivedDate: "2024-06-10",
-      status: "In Stock"
-    },
-    {
-      id: "RM002",
-      name: "White PVA Adhesive",
-      productType: "Adhesive & Glue",
-      specifications: {
-        grade: "Industrial Grade",
-        viscosity: "High",
-        color: "White"
-      },
-      unit: "KG",
-      currentStock: 150,
-      minimumStock: 200,
-      unitPrice: 85.00,
-      supplierId: "SUP002",
-      supplierName: "Adhesive Solutions",
-      batchNumber: "ADH2024005",
-      manufacturingDate: "2024-05-15",
-      receivedDate: "2024-06-05",
-      status: "Low Stock"
-    }
-  ]);
-
-  const [stockMovements, setStockMovements] = useState<StockMovement[]>([
-    {
-      id: "SM001",
-      materialId: "RM001",
-      type: "IN",
-      quantity: 1000,
-      reason: "Purchase Order",
-      poNumber: "PO2024001",
-      date: "2024-06-10",
-      notes: "Fresh stock from Paper Mills"
-    },
-    {
-      id: "SM002",
-      materialId: "RM001",
-      type: "OUT",
-      quantity: 250,
-      reason: "Production Consumption",
-      jobId: "JOB001",
-      date: "2024-06-12",
-      notes: "Used for ABC Industries order"
-    }
-  ]);
+  // Get data from Redux store
+  const materials = useAppSelector(selectAllMaterials);
+  const suppliers = useAppSelector(selectAllSuppliers);
+  const stockMovements = useAppSelector((state: any) => state.stockMovements.movements);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -223,11 +137,11 @@ export default function RawMaterials() {
   const totalInventoryValue = materials.reduce((sum, m) => sum + (m.currentStock * m.unitPrice), 0);
 
   // Filter suppliers based on selected product type
-  const filteredSuppliers = mockSuppliers.filter(supplier => 
+  const filteredSuppliers = suppliers.filter(supplier => 
     !formData.productType || supplier.productType === formData.productType
   );
 
-  const selectedSupplier = mockSuppliers.find(s => s.id === formData.supplierId);
+  const selectedSupplier = suppliers.find(s => s.id === formData.supplierId);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -243,24 +157,13 @@ export default function RawMaterials() {
   };
 
   const handleSubmit = () => {
-    // Calculate status based on stock levels
-    let status: "In Stock" | "Low Stock" | "Out of Stock" = "In Stock";
-    if (formData.currentStock === 0) {
-      status = "Out of Stock";
-    } else if (formData.currentStock <= formData.minimumStock) {
-      status = "Low Stock";
-    }
-
-    const newMaterial: RawMaterial = {
-      id: `RM${String(materials.length + 1).padStart(3, '0')}`,
+    dispatch(addMaterial({
       ...formData,
-      status
-    };
-    
-    setMaterials([...materials, newMaterial]);
+      status: "Active" as any
+    }));
     
     toast({
-      title: "Raw Material Added",
+      title: "Raw Material Added", 
       description: "New raw material has been successfully added to inventory.",
     });
     
