@@ -21,14 +21,14 @@ const productTypes = [
 ];
 
 const unitsByProductType = {
-  "Corrugated Sheets": ["Pieces", "Sq.Ft"],
+  "Corrugated Sheets": ["KG", "Nos.", "Liters"],
   "Adhesive & Glue": ["KG", "Liters"], 
-  "Stitching Wire": ["KG", "Rolls"],
+  "Stitching Wire": ["KG", "Nos."],
   "Printing Ink": ["KG", "Liters"],
-  "Packaging Material": ["Pieces", "KG"],
-  "Lamination Material": ["Rolls", "Sq.Ft"],
-  "Die Cutting Tools": ["Pieces"],
-  "Quality Control Equipment": ["Pieces"]
+  "Packaging Material": ["Nos.", "KG"],
+  "Lamination Material": ["Nos.", "KG"],
+  "Die Cutting Tools": ["Nos."],
+  "Quality Control Equipment": ["Nos."]
 };
 
 // Box manufacturing specific specifications
@@ -63,6 +63,8 @@ export default function MaterialForm({ mode, initialData, onSubmit, onCancel }: 
     batchNumber: "",
     manufacturingDate: "",
     receivedDate: "",
+    hsnCode: "",
+    gstRate: 0,
     qualityParams: {} as Record<string, string>,
     ...initialData
   });
@@ -402,6 +404,34 @@ export default function MaterialForm({ mode, initialData, onSubmit, onCancel }: 
             </SelectContent>
           </Select>
           {errors.productType && <p className="text-sm text-red-500">{errors.productType}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="hsnCode">HSN Code</Label>
+          <Input
+            id="hsnCode"
+            value={formData.hsnCode}
+            onChange={(e) => setFormData({ ...formData, hsnCode: e.target.value })}
+            placeholder="e.g., 4819"
+          />
+        </div>
+        <div>
+          <Label htmlFor="gstRate">GST Rate (%)</Label>
+          <Select
+            value={formData.gstRate?.toString()}
+            onValueChange={(value) => setFormData({ ...formData, gstRate: parseInt(value) })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select GST Rate" />
+            </SelectTrigger>
+            <SelectContent>
+              {[0, 5, 12, 18, 28].map((rate) => (
+                <SelectItem key={rate} value={rate.toString()}>{rate}%</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

@@ -60,6 +60,8 @@ export interface RawMaterial {
   name: string;
   productType: string;
   specifications: Record<string, string>;
+  hsnCode?: string;
+  gstRate?: number;
   unit: string;
   currentStock: number;
   minimumStock: number;
@@ -282,6 +284,9 @@ export interface GodownLocation {
   id: string;
   name: string;
   address: string;
+  state?: string;
+  pinCode?: string;
+  gstNumber?: string;
   type: "inbound" | "outbound" | "production" | "scrap" | "job_worker";
   capacity?: number;
   currentUsage?: number;
@@ -303,6 +308,67 @@ export interface JobWorker {
   rating: number; // 1-5
   status: "Active" | "Inactive";
   activeJobCards: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InwardItem {
+  id: string;
+  materialId: string;
+  materialName: string;
+  orderedQty: number;
+  receivedQty: number;
+  acceptedQty: number;
+  rejectedQty: number;
+  rejectionReason?: string;
+  unit: string;
+  rate: number;
+}
+
+export interface PurchaseInward {
+  id: string;
+  poId: string;
+  supplierId: string;
+  supplierName: string;
+  receivedDate: string;
+  items: InwardItem[];
+  grnNumber: string;
+  vehicleNumber?: string;
+  invoiceNumber?: string;
+  invoiceAmount?: number;
+  qualityCheckStatus: 'pending' | 'partially_checked' | 'completed';
+  receivedBy: string;
+  notes?: string;
+  status: 'draft' | 'submitted' | 'cancelled';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobCard {
+  id: string;
+  jobWorkerId: string;
+  jobWorkerName: string;
+  orderId?: string;
+  issueDate: string;
+  expectedReturnDate: string;
+  actualReturnDate?: string;
+  status: 'draft' | 'issued' | 'received' | 'partially_received' | 'closed' | 'cancelled';
+  items: {
+    id: string;
+    boxId: string;
+    boxName: string;
+    quantity: number;
+    receivedQuantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }[];
+  materialsIssued: {
+    materialId: string;
+    materialName: string;
+    quantity: number;
+    unit: string;
+  }[];
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }

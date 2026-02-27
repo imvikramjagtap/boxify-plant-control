@@ -45,6 +45,9 @@ export default function GodownJobWorker() {
     const newLoc = {
       name: formData.get("name") as string,
       address: formData.get("address") as string,
+      state: formData.get("state") as string,
+      pinCode: formData.get("pinCode") as string,
+      gstNumber: formData.get("gstNumber") as string,
       type: formData.get("type") as any,
       capacity: Number(formData.get("capacity")),
       currentUsage: 0,
@@ -54,7 +57,15 @@ export default function GodownJobWorker() {
     };
     dispatch(addLocation(newLoc));
     toast.success("Location added successfully");
+    (e.target as HTMLFormElement).reset();
   };
+
+  const states = [
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", 
+    "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", 
+    "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", 
+    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
+  ];
 
   const handleAddJW = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -72,6 +83,7 @@ export default function GodownJobWorker() {
     };
     dispatch(addJobWorker(newJW));
     toast.success("Job Worker added successfully");
+    (e.target as HTMLFormElement).reset();
   };
 
   const filteredLocations = locations.filter(loc => 
@@ -101,7 +113,7 @@ export default function GodownJobWorker() {
                 {activeTab === "locations" ? "Add Godown" : "Add Job Worker"}
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>{activeTab === "locations" ? "Add New Godown" : "Add New Job Worker"}</DialogTitle>
               </DialogHeader>
@@ -112,39 +124,64 @@ export default function GodownJobWorker() {
                     <Input id="name" name="name" placeholder="Main Raw Material Godown" required />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="type">Type</Label>
-                    <Select name="type" defaultValue="inbound">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="inbound">Inbound / Raw Material</SelectItem>
-                        <SelectItem value="outbound">Outbound / Finished Goods</SelectItem>
-                        <SelectItem value="production">Production Floor</SelectItem>
-                        <SelectItem value="scrap">Scrap Yard</SelectItem>
-                        <SelectItem value="job_worker">Job Worker Location</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="capacity">Capacity (Units)</Label>
-                    <Input id="capacity" name="capacity" type="number" placeholder="5000" required />
-                  </div>
-                  <div className="grid gap-2">
                     <Label htmlFor="address">Address</Label>
                     <Input id="address" name="address" placeholder="Sector 56, Industrial Estate" required />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
+                      <Label htmlFor="state">State</Label>
+                      <Select name="state" required>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select State" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          {states.map(state => (
+                            <SelectItem key={state} value={state}>{state}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="pinCode">Pin Code</Label>
+                      <Input id="pinCode" name="pinCode" placeholder="400001" pattern="[0-9]{6}" title="6 digit pin code" required />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="gstNumber">GST Number</Label>
+                      <Input id="gstNumber" name="gstNumber" placeholder="27AAAAA..." required />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="type">Type</Label>
+                      <Select name="type" defaultValue="inbound">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="inbound">Inbound / Raw Material</SelectItem>
+                          <SelectItem value="outbound">Outbound / Finished Goods</SelectItem>
+                          <SelectItem value="production">Production Floor</SelectItem>
+                          <SelectItem value="scrap">Scrap Yard</SelectItem>
+                          <SelectItem value="job_worker">Job Worker Location</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="capacity">Capacity (Units)</Label>
+                    <Input id="capacity" name="capacity" type="number" placeholder="5000" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
                       <Label htmlFor="contactPerson">Contact Person</Label>
-                      <Input id="contactPerson" name="contactPerson" placeholder="Mr. Sharma" />
+                      <Input id="contactPerson" name="contactPerson" placeholder="Mr. Sharma" required />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="phone">Phone</Label>
-                      <Input id="phone" name="phone" placeholder="+91..." />
+                      <Input id="phone" name="phone" placeholder="9876543210" pattern="[0-9]{10}" title="10 digit mobile number" required />
                     </div>
                   </div>
-                  <Button type="submit">Save Godown</Button>
+                  <Button type="submit" className="bg-green-600 hover:bg-green-700">SAVE</Button>
                 </form>
               ) : (
                 <form onSubmit={handleAddJW} className="grid gap-4 py-4">
