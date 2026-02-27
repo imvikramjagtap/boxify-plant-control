@@ -34,35 +34,75 @@ These are the building blocks of the entire system. **Everything else depends on
 
 ### 2.2 Box Master
 
+#### Box Master Card
+The Box Master Card stores the **complete specification** of a box design. It is the starting point for everything.
+
+**What you fill in:**
+- **Box Name** and **Item Code** — how you identify this design
+- **Client** — who this box is for (from the Client Master)
+- **Ply** — 3 Ply, 5 Ply, or 7 Ply corrugation
+- **Box Type** — RSC, Top & Bottom, Export Tray, Telescopic, etc.
+- **Dimensions** — Inner Length × Width × Height (mm)
+- **Flute Type** — A, B, C, E (for 3 Ply) or combinations like AB, BC (for 5/7 Ply)
+- **Paper Specifications** — GSM and BF for each layer (Top, Flute, Base)
+- **Manufacturing Joint** — Stitching Pin (with pin count) or Glue
+- **Printing** — Enable/disable, number of colours, printing type (Flexo/Offset/Digital), colour codes
+- **Stacking Strength** — Content Weight, Stack Height, Safety Factor
+
+**Auto-calculated fields:**
+- **Outer Dimensions** = Inner + 5mm each side
+- **Sheet Size** (Deckle/Cutting) = `Deckle = H + W + 25`, `Cutting = (L + W) × 2 + 60`
+- **Sheet Size for 2 Up / 3 Up / 4 Up** — multiples of deckle
+- **Ply Weight** — For flat layers: `(Deckle × Cutting × GSM) / 100000`; For flute layers: `GSM + (GSM × Flute%)`
+- **Ply B.S.** — For flat layers: `(GSM × BF) / 1000`; For flute layers: `(BF × 50) / 1000`
+- **Total Box Weight** — Sum of all ply weights
+- **Bursting Strength of Box** — Sum of all ply B.S.
+- **Load on Bottom Box** = Content Weight × (Stack Height − 1)
+- **Compression Strength** = Load on Bottom Box × Safety Factor
+
+> **Rule:** You must have at least one Client registered before creating a box. The box data is stored via Redux with localStorage persistence.
+
 #### Costing
 The costing module is the **calculation engine** of the system. It determines the cost of manufacturing one box.
 
-**How costing is calculated:**
-1. You specify the box dimensions (Length × Width × Height) and the type of corrugation (3-ply, 5-ply, 7-ply).
-2. The system calculates the **total paper area** needed per box.
-3. It multiplies this by the paper's **GSM (grams per square meter)** to get the net weight.
-4. A **wastage factor** (typically 5–15%) is added on top. 
-5. The weight is multiplied by the **paper rate (₹/kg)** to get raw material cost.
-6. **Conversion cost** (labour, machine, power) and **profit margin** are added.
+**How to create a Costing / Quotation:**
+1. Go to **Quotation page** → Click **"New Quote"** (auto-generates a Quotation ID and opens the Costing form)
+2. Or go to **Costing page** → Click **"Add Costing"** and enter a Quotation ID manually
+3. Select the **Box** (from Box Master) and **Client**
+4. Set the **Rates**: JW Rate, Sheet Inward, Box Making, Printing, Accessories, ROI %, Carriage Outward
+5. The system auto-calculates all costs and shows the **Cost Breakdown table**
+6. Click **"Save & Generate Quotation"** — this creates the costing record AND makes it visible on the Quotation page
 
-**Formula:**
+**Costing Formula:**
 ```
-Material Cost = (Paper Area × GSM / 1000) × (1 + Wastage%) × Rate per Kg
-Total Cost = Material Cost + Conversion Cost + Overhead + Profit Margin
+JW Charges = (Box Weight × JW Rate) / 1000
+Sheet Inward = Box Weight × Sheet Inward Rate
+Box Making = Rate per box (fixed)
+Printing = Rate per box (fixed)
+Accessories = Box Weight × Accessories Rate
+Mfg Cost = JW + Sheet Inward + Box Making + Printing + Accessories
+ROI = Mfg Cost × ROI%
+Total Cost Per Box = Mfg Cost + ROI + Carriage Outward
+Total Price = Cost Per Box × Quantity
 ```
 
-> **Rule:** Costing requires Raw Material rates to be set up in the Master. If rates change, existing costings are NOT affected — they use the rate at the time of creation.
+> **Rule:** Costing requires a Box from Box Master (which determines the weight) and a Client. The Box Weight used in calculations comes from the Paper Specifications set in the Box Master Card.
 
 #### Quotation
-A formal price offer sent to a client, generated from a Costing project.
+The Quotation page shows all generated quotations (Costing records that have a Quotation ID).
 
 **Quotation Statuses:**
 - `Sent` → Waiting for client response
-- `Approved` → Client accepted the price
+- `Approved` → Client accepted the price (click ✓ to approve)
 - `Rejected` → Client declined
-- `Converted to SO` → Successfully turned into a Sales Order
+- `Converted to SO` → Successfully turned into a Sales Order (click "Convert to SO")
 
-> **Rule:** A Quotation can only be created from a completed Costing project. Converting to SO freezes the pricing — future rate changes won't affect this order.
+**Workflow:**
+```
+New Quote → Costing Form → Save → Appears on Quotation Page → Approve → Convert to Sales Order
+```
+
+> **Rule:** A Quotation is created through the Costing page. The "New Quote" button on the Quotation page navigates you to the Costing form with an auto-generated Quotation ID. Converting to SO freezes the pricing — future rate changes won't affect this order.
 
 ---
 

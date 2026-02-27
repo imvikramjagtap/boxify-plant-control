@@ -12,14 +12,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Plus, Search, Settings, Calculator, FileText, TrendingUp, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import QuoteVersionManager from "@/components/costing/QuoteVersionManager";
-import MaterialCostCalculator from "@/components/costing/MaterialCostCalculator";
-import PricingTierManager from "@/components/costing/PricingTierManager";
 
 const schema = z.object({
   quotationId: z.string().min(1, "Quotation ID is required"),
@@ -83,8 +79,11 @@ export default function Costing() {
   const { toast } = useToast();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isNewQuote = searchParams.get('newQuote') === 'true';
+  const prefillQuotationId = searchParams.get('quotationId') || '';
   const [searchTerm, setSearchTerm] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(isNewQuote);
   
   // Get data from Redux store
   const costings = useAppSelector((state: any) => state.costing.projects);
@@ -113,7 +112,7 @@ export default function Costing() {
       };
     }
     return {
-      quotationId: "",
+      quotationId: prefillQuotationId || "",
       boxId: "",
       clientId: "",
       quantity: 1000,
@@ -148,11 +147,6 @@ export default function Costing() {
     totalPrice: 0
   });
 
-  // Advanced pricing states
-  const [materialCostAdjustment, setMaterialCostAdjustment] = useState(0);
-  const [materialCostData, setMaterialCostData] = useState([]);
-  const [pricingAdjustments, setPricingAdjustments] = useState([]);
-
   const boxId = watch("boxId");
   const quantity = watch("quantity");
   const jwRate = watch("jwRate");
@@ -167,17 +161,17 @@ export default function Costing() {
 
   useEffect(() => {
     if (selectedBox) {
-      // Calculate estimated weight from box dimensions (L x W x H) in cm and assume cardboard density
-      const volume = selectedBox.dimensions.length * selectedBox.dimensions.width * selectedBox.dimensions.height; // cm³
-      const estimatedWeightGrams = volume * 0.5; // Approximate cardboard density (0.5 g/cm³)
-      const totalBoxWeightKg = estimatedWeightGrams / 1000; // Convert grams to kg
+      // Use totalBoxWeight from BoxMaster if available, otherwise estimate
+      const totalBoxWeightKg = selectedBox.totalBoxWeight 
+        ? selectedBox.totalBoxWeight / 1000 
+        : (selectedBox.dimensions.length * selectedBox.dimensions.width * selectedBox.dimensions.height * 0.5) / 1000;
       
-      // Calculate costs based on formulas from the image
-      const jwCharges = (totalBoxWeightKg * jwRate) / 1000; // JW Rate per kg
-      const sheetInwardCost = totalBoxWeightKg * sheetInwardRate; // Sheet Inward per kg
-      const boxMakingCost = boxMakingRate; // Rate per box
-      const printingCost = printingCostRate; // Printing cost per color/box
-      const accessoriesCost = totalBoxWeightKg * accessoriesRate; // Set cost for 1 box
+      // Calculate costs based on formulas
+      const jwCharges = (totalBoxWeightKg * jwRate) / 1000;
+      const sheetInwardCost = totalBoxWeightKg * sheetInwardRate;
+      const boxMakingCost = boxMakingRate;
+      const printingCost = printingCostRate;
+      const accessoriesCost = totalBoxWeightKg * accessoriesRate;
       
       // Manufacturing cost per box
       const mfgCostPerBox = jwCharges + sheetInwardCost + boxMakingCost + printingCost + accessoriesCost;
@@ -224,7 +218,7 @@ export default function Costing() {
       roiPercentage: data.roiPercentage,
       carriageOutward: data.carriageOutward,
       boxName: selectedBoxData?.name || 'Unknown Box',
-      totalBoxWeight: selectedBoxData?.estimatedCost || 0, // Using estimatedCost as placeholder since totalBoxWeight doesn't exist
+      totalBoxWeight: selectedBoxData?.totalBoxWeight || 0,
       calculations,
       quotationDetails: {
         quotationId: data.quotationId,
@@ -235,7 +229,7 @@ export default function Costing() {
         paymentTerms: "30 days from delivery",
         deliveryTerms: "Ex-works"
       },
-      status: "draft" as const
+      status: "quoted" as const
     };
 
     if (costingId) {
@@ -247,29 +241,14 @@ export default function Costing() {
     } else {
       dispatch(addCostingProject(costingData));
       toast({
-        title: "Costing Added", 
-        description: "New costing record has been successfully added.",
+        title: "Quotation Generated", 
+        description: `Quotation ${data.quotationId} has been created. View it in the Quotation page.`,
       });
     }
 
     setShowForm(false);
+    navigate('/costing');
   };
-
-  const handleMaterialCostUpdate = (adjustment, materials) => {
-    setMaterialCostAdjustment(adjustment);
-    setMaterialCostData(materials);
-  };
-
-  const handlePricingUpdate = (adjustments) => {
-    setPricingAdjustments(adjustments);
-  };
-
-  // Calculate final price with all adjustments
-  const finalCalculatedPrice = calculations.totalPrice + materialCostAdjustment + 
-    pricingAdjustments.reduce((sum, adj) => {
-      if (adj.type === 'seasonal_adjustment') return sum + adj.amount;
-      return sum - adj.amount; // Discounts are negative
-    }, 0);
 
   const filteredCostings = costings.filter(costing =>
     costing.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -287,28 +266,18 @@ export default function Costing() {
           <h1 className="text-xl md:text-2xl font-bold">{costingId ? 'Edit Costing' : 'Add New Costing'}</h1>
         </div>
         
-        <div className="w-full space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calculator className="h-5 w-5" />
-                BOX COSTING & QUOTATION
-                <Badge variant="outline" className="ml-auto">
-                  Final: ₹{finalCalculatedPrice.toFixed(2)}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="basic" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="basic">Basic Info</TabsTrigger>
-                  <TabsTrigger value="materials">Materials</TabsTrigger>
-                  <TabsTrigger value="pricing">Pricing</TabsTrigger>
-                  <TabsTrigger value="versions">Versions</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="basic" className="space-y-6">
-                  <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              BOX COSTING & QUOTATION
+              <Badge variant="outline" className="ml-auto">
+                Final: ₹{calculations.totalCostPerBox.toFixed(2)}/box
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     {/* Basic Information */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                       <div>
@@ -612,18 +581,20 @@ export default function Costing() {
                             </TableBody>
                             <TableFooter>
                               <TableRow>
-                                <TableCell colSpan={2} className="font-semibold">Base Cost Per Box</TableCell>
+                                <TableCell colSpan={2} className="font-semibold">Mfg Cost Per Box</TableCell>
+                                <TableCell className="text-right font-semibold">₹{calculations.mfgCostPerBox.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell colSpan={2} className="font-semibold">ROI ({roiPercentage}%)</TableCell>
+                                <TableCell className="text-right font-semibold text-green-600">+₹{calculations.roiAmount.toFixed(2)}</TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell colSpan={2} className="font-semibold">Cost Per Box (incl. Carriage)</TableCell>
                                 <TableCell className="text-right font-semibold">₹{calculations.totalCostPerBox.toFixed(2)}</TableCell>
                               </TableRow>
                               <TableRow>
-                                <TableCell colSpan={2} className="font-semibold">Material Cost Adjustment</TableCell>
-                                <TableCell className={`text-right font-semibold ${materialCostAdjustment >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                  {materialCostAdjustment >= 0 ? '+' : ''}₹{materialCostAdjustment.toFixed(2)}
-                                </TableCell>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell colSpan={2} className="font-bold text-lg">FINAL PRICE ({quantity} boxes)</TableCell>
-                                <TableCell className="text-right font-bold text-lg">₹{finalCalculatedPrice.toFixed(2)}</TableCell>
+                                <TableCell colSpan={2} className="font-bold text-lg">TOTAL PRICE ({quantity} boxes)</TableCell>
+                                <TableCell className="text-right font-bold text-lg">₹{calculations.totalPrice.toFixed(2)}</TableCell>
                               </TableRow>
                             </TableFooter>
                           </Table>
@@ -631,44 +602,13 @@ export default function Costing() {
                       </CardContent>
                     </Card>
 
-                    <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-                      <Button type="submit" className="w-full sm:w-auto">{costingId ? 'Update' : 'Save'}</Button>
-                      <Button type="button" variant="outline" onClick={() => {setShowForm(false); navigate('/costing');}} className="w-full sm:w-auto">Cancel</Button>
-                    </div>
-                  </form>
-                </TabsContent>
-
-                <TabsContent value="materials">
-                  <MaterialCostCalculator 
-                    boxId={boxId} 
-                    quantity={quantity} 
-                    onCostUpdate={handleMaterialCostUpdate}
-                  />
-                </TabsContent>
-
-                <TabsContent value="pricing">
-                  <PricingTierManager 
-                    clientId={watch("clientId")} 
-                    quantity={quantity} 
-                    basePrice={calculations.totalPrice} 
-                    onPricingUpdate={handlePricingUpdate}
-                  />
-                </TabsContent>
-
-                <TabsContent value="versions">
-                  {watch("quotationId") && (
-                    <QuoteVersionManager 
-                      quotationId={watch("quotationId")} 
-                      costingProjectId={costingId || ""} 
-                      currentQuoteStatus="draft"
-                      onStatusChange={() => {}}
-                    />
-                  )}
-                </TabsContent>
-              </Tabs>
+                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+                  <Button type="submit" className="w-full sm:w-auto">{costingId ? 'Update' : 'Save & Generate Quotation'}</Button>
+                  <Button type="button" variant="outline" onClick={() => {setShowForm(false); navigate('/costing');}} className="w-full sm:w-auto">Cancel</Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
-        </div>
       </div>
     );
   }

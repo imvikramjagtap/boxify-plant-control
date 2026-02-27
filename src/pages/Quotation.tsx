@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import { toast } from "sonner";
 
 export default function Quotation() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const costingProjects = useSelector(selectAllCostingProjects);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -93,7 +95,13 @@ export default function Quotation() {
             <Printer className="h-4 w-4 mr-2" />
             Bulk Print
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => {
+              const quoteId = `QUO${String(Date.now()).slice(-6)}`;
+              navigate(`/costing?newQuote=true&quotationId=${quoteId}`);
+            }}
+          >
             <Plus className="h-4 w-4 mr-2" />
             New Quote
           </Button>
