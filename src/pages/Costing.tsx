@@ -16,6 +16,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Plus, Search, Settings, Calculator, FileText, TrendingUp, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import MaterialCostCalculator from "@/components/costing/MaterialCostCalculator";
 
 const schema = z.object({
   quotationId: z.string().min(1, "Quotation ID is required"),
@@ -84,6 +86,7 @@ export default function Costing() {
   const prefillQuotationId = searchParams.get('quotationId') || '';
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(isNewQuote);
+  const [showTrendsDialog, setShowTrendsDialog] = useState(false);
   
   // Get data from Redux store
   const costings = useAppSelector((state: any) => state.costing.projects);
@@ -271,9 +274,21 @@ export default function Costing() {
             <CardTitle className="flex items-center gap-2">
               <Calculator className="h-5 w-5" />
               BOX COSTING & QUOTATION
-              <Badge variant="outline" className="ml-auto">
-                Final: ₹{calculations.totalCostPerBox.toFixed(2)}/box
-              </Badge>
+              <div className="ml-auto flex items-center gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowTrendsDialog(true)}
+                  className="text-xs"
+                >
+                  <TrendingUp className="h-3.5 w-3.5 mr-1" />
+                  Material Trends
+                </Button>
+                <Badge variant="outline">
+                  Final: ₹{calculations.totalCostPerBox.toFixed(2)}/box
+                </Badge>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -609,6 +624,23 @@ export default function Costing() {
               </form>
             </CardContent>
           </Card>
+
+          {/* Material Trends Dialog */}
+          <Dialog open={showTrendsDialog} onOpenChange={setShowTrendsDialog}>
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Material Price Trends & Analysis
+                </DialogTitle>
+              </DialogHeader>
+              <MaterialCostCalculator 
+                boxId={boxId || ''} 
+                quantity={quantity || 1000} 
+                onCostUpdate={() => {}}
+              />
+            </DialogContent>
+          </Dialog>
       </div>
     );
   }
