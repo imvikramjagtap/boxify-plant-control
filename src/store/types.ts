@@ -277,3 +277,32 @@ export interface CostingProject {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface GodownLocation {
+  id: string;
+  name: string;
+  address: string;
+  type: "inbound" | "outbound" | "production" | "scrap" | "job_worker";
+  capacity?: number;
+  currentUsage?: number;
+  contactPerson?: string;
+  phone?: string;
+  status: "Active" | "Inactive";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobWorker {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  gstNumber: string;
+  specialization: string[];
+  ratePerUnit: number;
+  rating: number; // 1-5
+  status: "Active" | "Inactive";
+  activeJobCards: number;
+  createdAt: string;
+  updatedAt: string;
+}
