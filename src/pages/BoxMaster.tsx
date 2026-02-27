@@ -19,6 +19,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { 
   addBox, 
   updateBox, 
+  deleteBox,
   selectAllBoxes 
 } from "@/store/slices/boxMasterSlice";
 import { selectAllClients } from "@/store/slices/clientsSlice";
@@ -111,27 +112,31 @@ export default function BoxMaster() {
     if (existingBox) {
       return {
         boxName: existingBox.name || "",
-        itemCode: existingBox.description || "",
+        itemCode: existingBox.itemCode || existingBox.description || "",
         clientId: existingBox.clientId || "",
         length: existingBox.dimensions?.length?.toString() || "0",
         width: existingBox.dimensions?.width?.toString() || "0", 
         height: existingBox.dimensions?.height?.toString() || "0",
-        ply: "3 Ply",
-        boxType: existingBox.category || "RSC",
-        fluteType: "A",
-        mfgJoint: "Stitching Pin",
-        numberOfPins: 0,
-        printing: false,
-        numberOfColors: "1",
-        printingType: "Flexo",
-        colorCode: [""],
-        contentWeight: 20,
-        stackHeight: 8,
-        safetyFactor: 5,
-        paperSpecs: [
+        ply: existingBox.ply || "3 Ply",
+        boxType: existingBox.boxType || existingBox.category || "RSC",
+        fluteType: existingBox.fluteType || "A",
+        mfgJoint: existingBox.mfgJoint || "Stitching Pin",
+        numberOfPins: existingBox.numberOfPins || 0,
+        printing: existingBox.printing || false,
+        numberOfColors: existingBox.numberOfColors || "1",
+        printingType: existingBox.printingType || "Flexo",
+        colorCode: existingBox.colorCode || [""],
+        contentWeight: existingBox.contentWeight || 20,
+        stackHeight: existingBox.stackHeight || 8,
+        safetyFactor: existingBox.safetyFactor || 5,
+        paperSpecs: existingBox.paperSpecs || [
           { gsm: "0", bf: "0" },
           { gsm: "0", bf: "0" },
-          { gsm: "0", bf: "0" }
+          { gsm: "0", bf: "0" },
+          { gsm: "0", bf: "0" },
+          { gsm: "0", bf: "0" },
+          { gsm: "0", bf: "0" },
+          { gsm: "0", bf: "0" },
         ]
       };
     }
@@ -346,10 +351,11 @@ export default function BoxMaster() {
   };
 
   const onSubmit = (data: FormValues) => {
-    const selectedClient = clients.find(client => client.id === data.clientId);
+    const selectedClient = clients.find((client: any) => client.id === data.clientId);
     const box: any = {
       id: boxId || uuidv4(),
       name: data.boxName,
+      itemCode: data.itemCode,
       clientId: data.clientId,
       clientName: selectedClient ? selectedClient.name : '',
       dimensions: {
@@ -357,8 +363,32 @@ export default function BoxMaster() {
         width: parseInt(data.width),
         height: parseInt(data.height)
       },
-      materials: [], // Will be populated based on paper specs
-      estimatedCost: totalBoxWeight * 2.5, // Simple calculation
+      outerDimensions: outerDim,
+      ply: data.ply,
+      boxType: data.boxType,
+      fluteType: data.fluteType,
+      mfgJoint: data.mfgJoint,
+      numberOfPins: data.numberOfPins,
+      printing: data.printing,
+      numberOfColors: data.numberOfColors,
+      printingType: data.printingType,
+      colorCode: data.colorCode,
+      paperSpecs: getVisiblePaperSpecs().map(spec => ({
+        gsm: spec.gsm.toString(),
+        bf: spec.bf.toString()
+      })),
+      sheetSize,
+      contentWeight: data.contentWeight,
+      stackHeight: data.stackHeight,
+      safetyFactor: data.safetyFactor,
+      // Calculated fields
+      totalBoxWeight,
+      bsOfBox,
+      loadOnBottomBox,
+      compressionStrength,
+      // Legacy compatibility
+      materials: [],
+      estimatedCost: totalBoxWeight * 2.5,
       category: data.boxType,
       description: `${data.ply} ${data.boxType} box for ${selectedClient?.name || 'client'}`
     };
@@ -367,18 +397,17 @@ export default function BoxMaster() {
       dispatch(updateBox({ id: boxId, updates: box }));
       toast({
         title: "Box Updated",
-        description: "Box specifications have been successfully updated.",
+        description: `${data.boxName} specifications saved successfully.`,
       });
     } else {
       dispatch(addBox(box));
       toast({
-        title: "Box Added",
-        description: "New box has been successfully added to the system.",
+        title: "Box Created",
+        description: `${data.boxName} has been added to the Box Master.`,
       });
     }
 
     setShowForm(false);
-    console.log(JSON.stringify(box, null, 2));
   };
 
   const filteredBoxes = boxes.filter((box: any) => {
@@ -1070,47 +1099,63 @@ export default function BoxMaster() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredBoxes.map((box: any) => (
+           {filteredBoxes.map((box: any) => (
             <Card key={box.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="text-lg">{box.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{box.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{box.itemCode || box.id}</p>
                   </div>
-                  <Badge variant="outline">{box.category}</Badge>
+                  <div className="flex gap-1">
+                    <Badge variant="secondary">{box.ply || "3 Ply"}</Badge>
+                    <Badge variant="outline">{box.boxType || box.category}</Badge>
+                  </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium">Client</p>
-                  <p className="text-sm text-muted-foreground">
-                    {clients.find((c: any) => c.id === box.clientId)?.name || "Unknown Client"}
+              <CardContent className="space-y-2 pt-0">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Client</p>
+                    <p className="font-medium truncate">{box.clientName || clients.find((c: any) => c.id === box.clientId)?.name || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Dimensions (L×W×H)</p>
+                    <p className="font-medium">{box.dimensions?.length}×{box.dimensions?.width}×{box.dimensions?.height} mm</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Flute Type</p>
+                    <p className="font-medium">{box.fluteType || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Sheet Size</p>
+                    <p className="font-medium">{box.sheetSize?.deckle || "—"} × {box.sheetSize?.cutting || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Box Weight</p>
+                    <p className="font-medium">{box.totalBoxWeight?.toFixed(2) || "0.00"} gm</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Compression Str.</p>
+                    <p className="font-medium">{box.compressionStrength?.toFixed(0) || "—"} kg</p>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-muted-foreground">
+                    {box.printing ? `${box.numberOfColors || 1} Color ${box.printingType || ""}` : "No Printing"} • {box.mfgJoint || "—"}
                   </p>
-                </div>
-                
-                <div>
-                  <p className="text-sm font-medium">Dimensions (L×W×H)</p>
-                  <p className="text-sm text-muted-foreground">
-                    {box.dimensions?.length} × {box.dimensions?.width} × {box.dimensions?.height} mm
-                  </p>
-                </div>
-                
-                <div>
-                  <p className="text-sm font-medium">Category</p>
-                  <p className="text-sm text-muted-foreground">{box.category}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium">Estimated Cost</p>
-                  <p className="text-sm text-muted-foreground">₹{box.estimatedCost?.toFixed(2) || "0.00"}</p>
-                </div>
-                
-                <div className="flex justify-end">
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/boxes/${box.id}`)}>
-                    <Settings className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" className="h-7 text-destructive hover:text-destructive" onClick={() => dispatch(deleteBox(box.id))}>
+                      Delete
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7" onClick={() => navigate(`/boxes/${box.id}`)}>
+                      <Settings className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

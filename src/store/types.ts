@@ -193,14 +193,50 @@ export interface StockMovement {
   createdBy: string;
 }
 
+export interface BoxPaperSpec {
+  gsm: string;
+  bf: string;
+}
+
 export interface BoxMaster {
   id: string;
   name: string;
+  itemCode: string;
+  clientId: string;
+  clientName: string;
   dimensions: {
     length: number;
     width: number;
     height: number;
   };
+  outerDimensions: {
+    length: number;
+    width: number;
+    height: number;
+  };
+  ply: "3 Ply" | "5 Ply" | "7 Ply";
+  boxType: string;
+  fluteType: string;
+  mfgJoint: "Stitching Pin" | "Glue";
+  numberOfPins?: number;
+  printing: boolean;
+  numberOfColors?: string;
+  printingType?: string;
+  colorCode?: string[];
+  paperSpecs: BoxPaperSpec[];
+  sheetSize: {
+    deckle: number;
+    cutting: number;
+  };
+  contentWeight: number;
+  stackHeight: number;
+  safetyFactor: number;
+  // Calculated fields
+  totalBoxWeight: number;
+  bsOfBox: number;
+  loadOnBottomBox: number;
+  compressionStrength: number;
+  // Legacy compatibility
   materials: Array<{
     materialId: string;
     quantity: number;
