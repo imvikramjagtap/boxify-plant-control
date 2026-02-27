@@ -182,5 +182,8 @@ export const selectSalesOrdersByClient = (state: { salesOrders: SalesOrderState 
 export const selectSalesOrderByQuotation = (state: { salesOrders: SalesOrderState }, quotationId: string) =>
   state.salesOrders.orders.find(o => o.quotationId === quotationId);
 
+export const selectAllSalesOrders = (state: { salesOrders: SalesOrderState }) =>
+  state.salesOrders.orders;
+
 export const selectProductionCapacityByBoxType = (state: { salesOrders: SalesOrderState }, boxTypeId: string) =>
   state.salesOrders.productionCapacity.find(c => c.boxTypeId === boxTypeId);

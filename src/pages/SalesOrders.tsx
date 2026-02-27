@@ -14,12 +14,13 @@ import {
   Search, 
   Eye, 
   Truck, 
-  AlertCircle,
-  MoreVertical,
   Calendar,
   Settings2,
-  PackageCheck
+  PackageCheck,
+  Download,
+  AlertCircle
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { updateSalesOrderStatus, approveSalesOrder } from "@/store/slices/salesOrderSlice";
 import { selectAllClients } from "@/store/slices/clientsSlice";
 import { format } from "date-fns";
@@ -222,17 +223,85 @@ export default function SalesOrders() {
 
       {/* Order Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Order Summary: {selectedOrderId}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              Order Detail: <span className="text-blue-600">{selectedOrderId}</span>
+            </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <AlertCircle className="h-12 w-12 text-muted-foreground/40 mb-4" />
-            <h3 className="text-lg font-semibold text-muted-foreground">Detailed View Coming Soon</h3>
-            <p className="text-sm text-muted-foreground/70 max-w-sm mt-1">
-              Currently, you can manage statuses from the list view. A detailed order breakdown is under development.
-            </p>
-          </div>
+          
+          {selectedOrderId && (() => {
+            const order = orders.find((o: any) => o.id === selectedOrderId);
+            if (!order) return null;
+            return (
+              <div className="space-y-6 py-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Client</Label>
+                    <p className="font-bold">{getClientName(order.clientId)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Order Date</Label>
+                    <p className="font-medium">{format(new Date(order.orderDate), 'dd MMM yyyy')}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Expected Delivery</Label>
+                    <p className="font-medium text-amber-600">{format(new Date(order.expectedDeliveryDate), 'dd MMM yyyy')}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Current Status</Label>
+                    <div>{getStatusBadge(order.status)}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-bold text-sm border-b pb-2">Order Lifecycle</h4>
+                  <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-px before:bg-slate-200">
+                    <div className="relative">
+                      <div className="absolute -left-[21px] top-1.5 h-3 w-3 rounded-full bg-blue-500 ring-4 ring-white" />
+                      <div className="text-sm font-semibold">Order Created</div>
+                      <div className="text-[10px] text-muted-foreground">{format(new Date(order.orderDate), 'PPP')}</div>
+                    </div>
+                    {order.status !== 'draft' && (
+                      <div className="relative">
+                        <div className={`absolute -left-[21px] top-1.5 h-3 w-3 rounded-full ring-4 ring-white ${['confirmed', 'in_production', 'ready_to_ship', 'shipped', 'delivered'].includes(order.status) ? 'bg-green-500' : 'bg-slate-300'}`} />
+                        <div className="text-sm font-semibold">Order Confirmed</div>
+                        <div className="text-[10px] text-muted-foreground">Production scheduled</div>
+                      </div>
+                    )}
+                    {['shipped', 'delivered'].includes(order.status) && (
+                      <div className="relative">
+                        <div className={`absolute -left-[21px] top-1.5 h-3 w-3 rounded-full ring-4 ring-white ${['shipped', 'delivered'].includes(order.status) ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                        <div className="text-sm font-semibold">Dispatched</div>
+                        <div className="text-[10px] text-muted-foreground">Goods left factory</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-xl space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Order Value</span>
+                    <span className="font-bold text-lg">₹{(order.totalAmount || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <DialogFooter className="gap-2 sm:justify-between border-t pt-4">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Invoice
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Truck className="h-4 w-4 mr-2" />
+                      Track
+                    </Button>
+                  </div>
+                  <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                </DialogFooter>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

@@ -16,6 +16,7 @@ import salesOrdersReducer from './slices/salesOrderSlice';
 import godownJobWorkerReducer from './slices/godownJobWorkerSlice';
 import purchaseInwardReducer from './slices/purchaseInwardSlice';
 import jobCardReducer from './slices/jobCardSlice';
+import shipmentsReducer from './slices/shipmentsSlice';
 
 const rootReducer = combineReducers({
   suppliers: suppliersReducer,
@@ -32,6 +33,7 @@ const rootReducer = combineReducers({
   godownJobWorker: godownJobWorkerReducer,
   purchaseInward: purchaseInwardReducer,
   jobCards: jobCardReducer,
+  shipments: shipmentsReducer,
 });
 
 const persistConfig = {
