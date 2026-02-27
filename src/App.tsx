@@ -28,6 +28,7 @@ import RMStockConsumption from "./pages/RMStockConsumption";
 import SalesOrders from "./pages/SalesOrders";
 import Delivery from "./pages/Delivery";
 import Reports from "./pages/Reports";
+import Help from "./pages/Help";
 
 const queryClient = new QueryClient();
 
@@ -79,6 +80,7 @@ const App = () => (
             <Route path="/reports/stock" element={<Reports />} />
             <Route path="/reports/sales" element={<Reports />} />
             <Route path="/reports/pending" element={<Reports />} />
+            <Route path="/help" element={<Help />} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
