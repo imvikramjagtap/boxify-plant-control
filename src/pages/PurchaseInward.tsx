@@ -2,7 +2,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowDownToLine, Package, ClipboardCheck, Truck } from "lucide-react";
 
-
 export default function PurchaseInward() {
   return (
     <div className="space-y-6">
