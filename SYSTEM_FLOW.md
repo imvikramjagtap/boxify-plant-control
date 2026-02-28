@@ -15,9 +15,39 @@ Each step feeds into the next. You cannot skip ahead — for example, you cannot
 
 ---
 
-## 2. Module Breakdown
+## 2. Getting Started (Quick Start Checklist)
 
-### 2.1 My MASTER (Foundation Data)
+If you're setting up the system for the first time, follow this order:
+
+1. ✅ **Register Suppliers** — Go to My MASTER → Suppliers → Add your paper / raw material vendors
+2. ✅ **Add Raw Materials** — Go to My MASTER → Raw Material → Add paper types (Kraft, Test Liner, etc.) with GSM, BF, and rate
+3. ✅ **Add Clients** — Go to My MASTER → Client → Add your customers with GST and contact details
+4. ✅ **Add Job Workers** — Go to My MASTER → Godown/JW → Add your corrugation / printing job workers
+5. ✅ **Create a Box Design** — Go to Box Designs → Add New → Fill in ply, dimensions, paper specs
+6. ✅ **Create a Quotation** — Go to Quotation → New Quote → Select box + client → Set rates → Save
+7. ✅ **Accept a Sales Order** — Go to Sales → Sales Orders → Create from approved quotation
+8. ✅ **Generate Job Cards** — Go to WIP → Job Cards → Generate from confirmed Sales Order
+9. ✅ **Record Production** — Track material issue, inward, and dispatch
+
+> **Tip:** You can access this Help page anytime from the **System Help** button in the top-right corner of the app.
+
+---
+
+## 3. Dashboard
+
+The Dashboard is the **home page** of the system. It provides an at-a-glance overview:
+
+- **Summary Cards** — Active orders, pending deliveries, stock alerts, revenue
+- **Recent Activity** — Latest quotations, orders, and job cards
+- **Quick Actions** — Shortcuts to create new items
+
+> The Dashboard pulls live data from all modules. It's read-only — you manage data through the individual modules.
+
+---
+
+## 4. Module Breakdown
+
+### 4.1 My MASTER (Foundation Data)
 
 These are the building blocks of the entire system. **Everything else depends on these being set up first.**
 
@@ -32,7 +62,7 @@ These are the building blocks of the entire system. **Everything else depends on
 
 ---
 
-### 2.2 Box Master
+### 4.2 Box Master
 
 #### Box Master Card
 The Box Master Card stores the **complete specification** of a box design. It is the starting point for everything.
@@ -104,9 +134,20 @@ New Quote → Costing Form → Save → Appears on Quotation Page → Approve �
 
 > **Rule:** A Quotation is created through the Costing page. The "New Quote" button on the Quotation page navigates you to the Costing form with an auto-generated Quotation ID. Converting to SO freezes the pricing — future rate changes won't affect this order.
 
+#### Material Trends (Costing Tool)
+When creating or editing a Costing, you can click the **"📈 Material Trends"** button in the top-right of the form header. This opens a dialog showing:
+
+- **Current vs Previous prices** for each raw material used in the selected box
+- **Price Trend** — Increasing ↗, Decreasing ↘, or Stable →
+- **Volatility Index** — Low / Medium / High based on price history
+- **Cost Impact** — How much each material contributes to the total cost
+- **Cost Adjustment** — Suggested adjustment based on market movement
+
+> **Tip:** Use this before finalizing a quotation to check if raw material prices have changed significantly. Consider adding a price escalation clause for high-volatility materials.
+
 ---
 
-### 2.3 Purchase (Procurement)
+### 4.3 Purchase (Procurement)
 
 #### Generate Purchase Order (PO)
 When raw materials are running low, you create a PO to order from a supplier.
@@ -134,7 +175,7 @@ When the ordered material physically arrives at your factory gate, you record a 
 
 ---
 
-### 2.4 Work In Progress (WIP)
+### 4.4 Work In Progress (WIP)
 
 This is the production tracking section — the core of factory operations.
 
@@ -205,7 +246,7 @@ For **in-house production** (not sent to external Job Workers). When you use raw
 
 ---
 
-### 2.5 Sales
+### 4.5 Sales
 
 #### Sales Order Acceptance
 When a client confirms a Quotation, it becomes a Sales Order (SO).
@@ -242,7 +283,7 @@ The logistics module for tracking physical shipments.
 
 ---
 
-### 2.6 Reports & Analytics
+### 4.6 Reports & Analytics
 
 All reports pull **live data** from the Redux store. They are read-only views.
 
@@ -256,7 +297,7 @@ All reports pull **live data** from the Redux store. They are read-only views.
 
 ---
 
-## 3. Dependency Chain (What Needs What)
+## 5. Dependency Chain (What Needs What)
 
 ```
 ┌─────────────────┐    ┌──────────────┐    ┌──────────────┐
@@ -288,7 +329,7 @@ All reports pull **live data** from the Redux store. They are read-only views.
 
 ---
 
-## 4. Quick Reference: System Rules
+## 6. Quick Reference: System Rules
 
 1. **No Supplier = No Purchase Order.** Always register suppliers first.
 2. **No Raw Material = No Costing.** Paper rates must exist to calculate box cost.
@@ -303,7 +344,7 @@ All reports pull **live data** from the Redux store. They are read-only views.
 
 ---
 
-## 5. User Roles & Responsibilities
+## 7. User Roles & Responsibilities
 
 | Role | Modules They Manage |
 |------|---------------------|
@@ -312,3 +353,17 @@ All reports pull **live data** from the Redux store. They are read-only views.
 | **Production In-charge** | Job Cards, Material Issue, JW Inward, Stock Consumption |
 | **Logistics Head** | Delivery, Shipments, LR Tracking |
 | **Management / Admin** | Reports, Analytics, All Modules (read access) |
+
+---
+
+## 8. Data Storage & Persistence
+
+All data in BoxMaster Pro is stored **locally in your browser** using Redux with localStorage persistence.
+
+**What this means:**
+- ✅ Data is saved automatically — no need to click "Save to Server"
+- ✅ Data persists across page refreshes and browser restarts
+- ⚠️ Data is **browser-specific** — if you switch browsers or clear browser data, your data will be lost
+- ⚠️ This is a **single-user system** — data is not shared between different computers
+
+> **Tip:** Regularly export important data (e.g., costing records, quotations) as a backup.
